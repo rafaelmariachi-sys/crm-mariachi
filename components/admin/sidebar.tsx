@@ -12,6 +12,7 @@ import {
   Menu,
   X,
   Wine,
+  CalendarRange,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -24,6 +25,7 @@ const navItems = [
   { href: '/admin/venues', label: 'Casas', icon: MapPin },
   { href: '/admin/visits', label: 'Visitas', icon: CalendarCheck },
   { href: '/admin/followups', label: 'Follow-ups', icon: MessageSquare },
+  { href: '/admin/agenda', label: 'Agenda', icon: CalendarRange },
   { href: '/admin/brands', label: 'Marcas', icon: Package },
 ]
 
