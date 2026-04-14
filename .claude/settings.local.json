@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/DELL/Desktop/**)",
+      "Bash(powershell -Command \"Compress-Archive -Path 'base mariachi spirits' -DestinationPath 'mariachi-spirits-crm.zip' -Force\")",
+      "Bash(npm.cmd install:*)",
+      "Bash(pip install:*)",
+      "Read(//c/Users/DELL/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/19341ba9-f0ca-47ea-83d7-8478734b6877/f3b48e51-271b-453d-b9b8-6aeaa1263e0e/skills/xlsx/**)",
+      "Bash(python -c ':*)"
+    ]
+  }
+}
