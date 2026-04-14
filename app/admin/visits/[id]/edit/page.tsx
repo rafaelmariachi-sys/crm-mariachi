@@ -143,12 +143,13 @@ export default function EditVisitPage() {
     if (toDeleteFol.length > 0) await supabase.from('followups').delete().in('id', toDeleteFol)
     for (const f of toUpdateFol) {
       await supabase.from('followups').update({
-        brand_id: f.brand_id, content: f.content, due_date: f.due_date || null, status: f.status
+        brand_id: f.brand_id === 'all' ? null : f.brand_id || null,
+        content: f.content, due_date: f.due_date || null, status: f.status
       }).eq('id', f.id!)
     }
     if (toInsertFol.length > 0) {
       await supabase.from('followups').insert(
-        toInsertFol.map((f) => ({ brand_id: f.brand_id, content: f.content, due_date: f.due_date || null, status: f.status, visit_id: visitId }))
+        toInsertFol.map((f) => ({ brand_id: f.brand_id === 'all' ? null : f.brand_id || null, content: f.content, due_date: f.due_date || null, status: f.status, visit_id: visitId }))
       )
     }
 
@@ -271,10 +272,13 @@ export default function EditVisitPage() {
                 </Button>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Marca *</Label>
-                    <Select value={f.brand_id} onValueChange={(v) => updateFollowup(i, 'brand_id', v)}>
+                    <Label className="text-xs">Marca</Label>
+                    <Select value={f.brand_id || 'all'} onValueChange={(v) => updateFollowup(i, 'brand_id', v)}>
                       <SelectTrigger className="h-9"><SelectValue placeholder="Selecionar" /></SelectTrigger>
-                      <SelectContent>{brands.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
+                      <SelectContent>
+                        <SelectItem value="all">🌐 Todas as marcas</SelectItem>
+                        {brands.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                      </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1.5">
