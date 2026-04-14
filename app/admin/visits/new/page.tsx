@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -10,27 +10,37 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/components/ui/use-toast'
-import { Plus, X, Loader2, ArrowLeft } from 'lucide-react'
-import { POSITIVATION_STATUS_LABELS, FOLLOWUP_STATUS_LABELS, Brand, Venue, PositivationStatus, FollowupStatus } from '@/lib/types'
+import { Plus, X, Loader2, ArrowLeft, MapPin } from 'lucide-react'
+import { POSITIVATION_STATUS_LABELS, FOLLOWUP_STATUS_LABELS, Brand, Venue, PositivationStatus, FollowupStatus, VENUE_TYPES } from '@/lib/types'
 import Link from 'next/link'
 import { format } from 'date-fns'
+import { cn } from '@/lib/utils'
 
 type PositivationForm = { brand_id: string; product_name: string; status: PositivationStatus; notes: string }
 type FollowupForm = { brand_id: string; content: string; due_date: string; status: FollowupStatus }
+
+const emptyNewVenue = { type: '', address: '', neighborhood: '', city: '', phone: '', contact_name: '' }
 
 export default function NewVisitPage() {
   const router = useRouter()
   const { toast } = useToast()
   const supabase = createClient()
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   const [brands, setBrands] = useState<Brand[]>([])
   const [venues, setVenues] = useState<Venue[]>([])
   const [saving, setSaving] = useState(false)
   const [venueSearch, setVenueSearch] = useState('')
+  const [showDropdown, setShowDropdown] = useState(false)
 
   const [venueId, setVenueId] = useState('')
   const [visitedAt, setVisitedAt] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [notes, setNotes] = useState('')
+
+  // Inline new venue form
+  const [showNewVenueForm, setShowNewVenueForm] = useState(false)
+  const [newVenueForm, setNewVenueForm] = useState(emptyNewVenue)
+  const [savingVenue, setSavingVenue] = useState(false)
 
   const [positivations, setPositivations] = useState<PositivationForm[]>([])
   const [followups, setFollowups] = useState<FollowupForm[]>([])
@@ -45,32 +55,83 @@ export default function NewVisitPage() {
     })
   }, [])
 
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const filteredVenues = venues.filter((v) =>
+    v.name.toLowerCase().includes(venueSearch.toLowerCase()) ||
+    (v.city || '').toLowerCase().includes(venueSearch.toLowerCase())
+  )
+
+  function selectVenue(v: Venue) {
+    setVenueId(v.id)
+    setVenueSearch(v.name + (v.city ? ` – ${v.city}` : ''))
+    setShowDropdown(false)
+    setShowNewVenueForm(false)
+  }
+
+  function clearVenue() {
+    setVenueId('')
+    setVenueSearch('')
+    setShowDropdown(false)
+    setShowNewVenueForm(false)
+  }
+
+  function openNewVenueForm() {
+    setShowNewVenueForm(true)
+    setShowDropdown(false)
+    setNewVenueForm(emptyNewVenue)
+  }
+
+  async function handleCreateVenue() {
+    if (!venueSearch.trim()) return
+    setSavingVenue(true)
+    const { data, error } = await supabase
+      .from('venues')
+      .insert({
+        name: venueSearch.trim(),
+        type: newVenueForm.type || null,
+        address: newVenueForm.address || null,
+        neighborhood: newVenueForm.neighborhood || null,
+        city: newVenueForm.city || null,
+        phone: newVenueForm.phone || null,
+        contact_name: newVenueForm.contact_name || null,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      toast({ title: 'Erro ao cadastrar bar', description: error.message, variant: 'destructive' })
+    } else {
+      setVenues((prev) => [...prev, data])
+      selectVenue(data)
+      toast({ title: `"${data.name}" cadastrado!` })
+    }
+    setSavingVenue(false)
+  }
+
   function addPositivation() {
     setPositivations([...positivations, { brand_id: '', product_name: '', status: 'positivado', notes: '' }])
   }
-
-  function removePositivation(i: number) {
-    setPositivations(positivations.filter((_, idx) => idx !== i))
-  }
-
+  function removePositivation(i: number) { setPositivations(positivations.filter((_, idx) => idx !== i)) }
   function updatePositivation(i: number, field: keyof PositivationForm, value: string) {
-    const updated = [...positivations]
-    updated[i] = { ...updated[i], [field]: value }
-    setPositivations(updated)
+    const updated = [...positivations]; updated[i] = { ...updated[i], [field]: value }; setPositivations(updated)
   }
 
   function addFollowup() {
     setFollowups([...followups, { brand_id: '', content: '', due_date: '', status: 'aberto' }])
   }
-
-  function removeFollowup(i: number) {
-    setFollowups(followups.filter((_, idx) => idx !== i))
-  }
-
+  function removeFollowup(i: number) { setFollowups(followups.filter((_, idx) => idx !== i)) }
   function updateFollowup(i: number, field: keyof FollowupForm, value: string) {
-    const updated = [...followups]
-    updated[i] = { ...updated[i], [field]: value }
-    setFollowups(updated)
+    const updated = [...followups]; updated[i] = { ...updated[i], [field]: value }; setFollowups(updated)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -79,60 +140,36 @@ export default function NewVisitPage() {
       toast({ title: 'Selecione a casa e a data', variant: 'destructive' })
       return
     }
-
     for (const p of positivations) {
       if (!p.brand_id || !p.product_name) {
-        toast({ title: 'Preencha todas as positivações', variant: 'destructive' })
-        return
+        toast({ title: 'Preencha todas as positivações', variant: 'destructive' }); return
       }
     }
-
     for (const f of followups) {
       if (!f.brand_id || !f.content) {
-        toast({ title: 'Preencha todos os follow-ups', variant: 'destructive' })
-        return
+        toast({ title: 'Preencha todos os follow-ups', variant: 'destructive' }); return
       }
     }
-
     setSaving(true)
 
-    // Create visit
     const { data: visit, error: visitError } = await supabase
-      .from('visits')
-      .insert({ venue_id: venueId, visited_at: visitedAt, notes })
-      .select()
-      .single()
+      .from('visits').insert({ venue_id: venueId, visited_at: visitedAt, notes }).select().single()
 
     if (visitError) {
       toast({ title: 'Erro ao criar visita', description: visitError.message, variant: 'destructive' })
-      setSaving(false)
-      return
+      setSaving(false); return
     }
 
-    // Create positivations
     if (positivations.length > 0) {
-      const { error } = await supabase.from('positivations').insert(
-        positivations.map((p) => ({ ...p, visit_id: visit.id }))
-      )
-      if (error) toast({ title: 'Erro nas positivações', description: error.message, variant: 'destructive' })
+      await supabase.from('positivations').insert(positivations.map((p) => ({ ...p, visit_id: visit.id })))
     }
-
-    // Create followups
     if (followups.length > 0) {
-      const { error } = await supabase.from('followups').insert(
-        followups.map((f) => ({ ...f, visit_id: visit.id, due_date: f.due_date || null }))
-      )
-      if (error) toast({ title: 'Erro nos follow-ups', description: error.message, variant: 'destructive' })
+      await supabase.from('followups').insert(followups.map((f) => ({ ...f, visit_id: visit.id, due_date: f.due_date || null })))
     }
 
     toast({ title: 'Visita registrada com sucesso!' })
     router.push(`/admin/visits/${visit.id}`)
   }
-
-  const filteredVenues = venues.filter((v) =>
-    v.name.toLowerCase().includes(venueSearch.toLowerCase()) ||
-    v.city.toLowerCase().includes(venueSearch.toLowerCase())
-  )
 
   return (
     <div className="p-6 max-w-2xl mx-auto space-y-6">
@@ -147,42 +184,120 @@ export default function NewVisitPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Visit base */}
         <Card>
           <CardHeader><CardTitle className="text-base">Informações da visita</CardTitle></CardHeader>
           <CardContent className="space-y-4">
+
+            {/* Venue search */}
             <div className="space-y-2">
-              <Label>Buscar casa *</Label>
-              <Input
-                placeholder="Digite para buscar..."
-                value={venueSearch}
-                onChange={(e) => setVenueSearch(e.target.value)}
-              />
-              {venueSearch && !venueId && (
-                <div className="border rounded-lg overflow-hidden max-h-48 overflow-y-auto">
-                  {filteredVenues.length === 0 ? (
-                    <p className="p-3 text-sm text-muted-foreground">Nenhuma casa encontrada</p>
-                  ) : (
-                    filteredVenues.map((v) => (
+              <Label>Bar / Estabelecimento *</Label>
+              <div className="relative" ref={dropdownRef}>
+                <Input
+                  placeholder="Digite o nome do bar..."
+                  value={venueSearch}
+                  onChange={(e) => {
+                    setVenueSearch(e.target.value)
+                    setVenueId('')
+                    setShowDropdown(true)
+                    setShowNewVenueForm(false)
+                  }}
+                  onFocus={() => { if (!venueId) setShowDropdown(true) }}
+                  className={cn(venueId && 'border-primary/50 bg-primary/5')}
+                />
+
+                {/* Dropdown */}
+                {showDropdown && venueSearch && !venueId && (
+                  <div className="absolute z-50 w-full mt-1 border rounded-lg bg-card shadow-lg max-h-56 overflow-y-auto">
+                    {filteredVenues.map((v) => (
                       <button
                         key={v.id}
                         type="button"
-                        onClick={() => { setVenueId(v.id); setVenueSearch(`${v.name} – ${v.city}`) }}
-                        className="w-full text-left px-3 py-2 hover:bg-muted text-sm border-b last:border-b-0"
+                        onClick={() => selectVenue(v)}
+                        className="w-full text-left px-3 py-2.5 hover:bg-muted text-sm border-b last:border-b-0 flex items-center gap-2"
                       >
-                        <span className="font-medium">{v.name}</span>
-                        <span className="text-muted-foreground ml-2 text-xs">{v.neighborhood} · {v.city}</span>
+                        <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span>
+                          <span className="font-medium">{v.name}</span>
+                          {(v.neighborhood || v.city) && (
+                            <span className="text-muted-foreground text-xs ml-2">
+                              {[v.neighborhood, v.city].filter(Boolean).join(' · ')}
+                            </span>
+                          )}
+                        </span>
                       </button>
-                    ))
-                  )}
-                </div>
-              )}
+                    ))}
+
+                    {/* Option to create new */}
+                    <button
+                      type="button"
+                      onClick={openNewVenueForm}
+                      className="w-full text-left px-3 py-2.5 hover:bg-primary/5 text-sm text-primary font-medium flex items-center gap-2 border-t"
+                    >
+                      <Plus className="h-3.5 w-3.5 shrink-0" />
+                      Cadastrar "{venueSearch}" como novo bar
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Selected venue indicator */}
               {venueId && (
-                <Button type="button" variant="ghost" size="sm" onClick={() => { setVenueId(''); setVenueSearch('') }}>
-                  <X className="h-3 w-3 mr-1" /> Limpar seleção
-                </Button>
+                <button type="button" onClick={clearVenue} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+                  <X className="h-3 w-3" /> Limpar seleção
+                </button>
               )}
             </div>
+
+            {/* Inline new venue form */}
+            {showNewVenueForm && (
+              <div className="border border-primary/30 rounded-lg p-4 bg-primary/5 space-y-3">
+                <p className="text-sm font-semibold text-primary">Cadastrar novo bar</p>
+                <p className="text-xs text-muted-foreground">Nome: <span className="font-medium text-foreground">"{venueSearch}"</span> — preencha o restante se quiser (tudo opcional)</p>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Tipo</Label>
+                    <Select value={newVenueForm.type} onValueChange={(v) => setNewVenueForm({ ...newVenueForm, type: v })}>
+                      <SelectTrigger className="h-9"><SelectValue placeholder="Tipo" /></SelectTrigger>
+                      <SelectContent>
+                        {VENUE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Bairro</Label>
+                    <Input className="h-9" placeholder="Bairro" value={newVenueForm.neighborhood} onChange={(e) => setNewVenueForm({ ...newVenueForm, neighborhood: e.target.value })} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Cidade</Label>
+                    <Input className="h-9" placeholder="Cidade" value={newVenueForm.city} onChange={(e) => setNewVenueForm({ ...newVenueForm, city: e.target.value })} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Telefone</Label>
+                    <Input className="h-9" placeholder="(11) 99999-9999" value={newVenueForm.phone} onChange={(e) => setNewVenueForm({ ...newVenueForm, phone: e.target.value })} />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Nome do contato</Label>
+                  <Input className="h-9" placeholder="Ex: João (gerente)" value={newVenueForm.contact_name} onChange={(e) => setNewVenueForm({ ...newVenueForm, contact_name: e.target.value })} />
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <Button type="button" size="sm" onClick={handleCreateVenue} disabled={savingVenue}>
+                    {savingVenue ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
+                    Cadastrar e selecionar
+                  </Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setShowNewVenueForm(false)}>
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label>Data da visita *</Label>
               <Input type="date" value={visitedAt} onChange={(e) => setVisitedAt(e.target.value)} />
