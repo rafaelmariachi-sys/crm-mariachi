@@ -12,13 +12,12 @@ export default async function BrandVisitsPage() {
   const supabase = createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
-  const { data: brandUser } = await supabase
+  const { data: brandUsers } = await supabase
     .from('brand_users')
     .select('brand_id')
     .eq('user_id', user!.id)
-    .single()
 
-  const brandId = brandUser?.brand_id
+  const brandIds = (brandUsers || []).map((bu: any) => bu.brand_id)
 
   // Get all visits with positivations or followups for this brand
   const { data: positivations } = await supabase
@@ -30,13 +29,13 @@ export default async function BrandVisitsPage() {
         venues(name, address, neighborhood, city, type)
       )
     `)
-    .eq('brand_id', brandId)
+    .in('brand_id', brandIds)
     .order('created_at', { ascending: false })
 
   const { data: followups } = await supabase
     .from('followups')
     .select(`visit_id, content, due_date, status`)
-    .eq('brand_id', brandId)
+    .in('brand_id', brandIds)
 
   // Group by visit
   const visitMap = new Map<string, {

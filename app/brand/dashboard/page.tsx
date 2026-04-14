@@ -14,16 +14,14 @@ export default async function BrandDashboard() {
   const supabase = createClient()
   const { start, end } = getCurrentMonthRange()
 
-  // Get the current user's brand
   const { data: { user } } = await supabase.auth.getUser()
-  const { data: brandUser } = await supabase
+  const { data: brandUsers } = await supabase
     .from('brand_users')
     .select('brand_id, brands(name)')
     .eq('user_id', user!.id)
-    .single()
 
-  const brandId = brandUser?.brand_id
-  const brandName = (brandUser as any)?.brands?.name
+  const brandIds = (brandUsers || []).map((bu: any) => bu.brand_id)
+  const brandNames = (brandUsers || []).map((bu: any) => bu.brands?.name).filter(Boolean).join(' & ')
 
   const [
     { data: positivationsThisMonth },
@@ -34,19 +32,19 @@ export default async function BrandDashboard() {
     supabase
       .from('positivations')
       .select('id, status, visits(visited_at, venue_id)')
-      .eq('brand_id', brandId)
+      .in('brand_id', brandIds)
       .gte('visits.visited_at', start)
       .lte('visits.visited_at', end),
 
     supabase
       .from('positivations')
       .select('status')
-      .eq('brand_id', brandId),
+      .in('brand_id', brandIds),
 
     supabase
       .from('followups')
       .select('id, content, due_date, status, visits(venues(name))')
-      .eq('brand_id', brandId)
+      .in('brand_id', brandIds)
       .eq('status', 'aberto')
       .order('due_date', { ascending: true })
       .limit(5),
@@ -54,19 +52,17 @@ export default async function BrandDashboard() {
     supabase
       .from('positivations')
       .select('visit_id, visits(id, visited_at, venues(name, city, type))')
-      .eq('brand_id', brandId)
+      .in('brand_id', brandIds)
       .order('created_at', { ascending: false })
       .limit(5),
   ])
 
-  // Count unique venues this month
   const uniqueVenuesThisMonth = new Set(
     (positivationsThisMonth || [])
       .filter((p: any) => p.visits?.venue_id)
       .map((p: any) => p.visits?.venue_id)
   ).size
 
-  // Count by status
   const statusCounts: Record<string, number> = {}
   ;(allPositivations || []).forEach((p: any) => {
     statusCounts[p.status] = (statusCounts[p.status] || 0) + 1
@@ -75,8 +71,8 @@ export default async function BrandDashboard() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">{brandName}</h1>
-        <p className="text-muted-foreground text-sm">Dashboard — visão geral da sua marca</p>
+        <h1 className="text-2xl font-bold">{brandNames}</h1>
+        <p className="text-muted-foreground text-sm">Dashboard — visão geral das suas marcas</p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
@@ -86,7 +82,6 @@ export default async function BrandDashboard() {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Open followups */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
@@ -121,7 +116,6 @@ export default async function BrandDashboard() {
           </CardContent>
         </Card>
 
-        {/* Positivations by status */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Positivações por status</CardTitle>

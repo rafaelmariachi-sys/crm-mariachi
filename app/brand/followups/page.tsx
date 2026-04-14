@@ -12,16 +12,17 @@ export default async function BrandFollowupsPage() {
   const supabase = createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
-  const { data: brandUser } = await supabase
+  const { data: brandUsers } = await supabase
     .from('brand_users')
     .select('brand_id')
     .eq('user_id', user!.id)
-    .single()
+
+  const brandIds = (brandUsers || []).map((bu: any) => bu.brand_id)
 
   const { data: followups } = await supabase
     .from('followups')
     .select('*, visits(venues(name, city))')
-    .eq('brand_id', brandUser?.brand_id)
+    .in('brand_id', brandIds)
     .order('due_date', { ascending: true, nullsFirst: false })
 
   const groupedByStatus: Record<string, any[]> = {

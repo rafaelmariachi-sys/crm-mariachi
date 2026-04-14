@@ -13,25 +13,24 @@ export default async function BrandReportsPage() {
   const { start, end } = getCurrentMonthRange()
 
   const { data: { user } } = await supabase.auth.getUser()
-  const { data: brandUser } = await supabase
+  const { data: brandUsers } = await supabase
     .from('brand_users')
     .select('brand_id')
     .eq('user_id', user!.id)
-    .single()
 
-  const brandId = brandUser?.brand_id
+  const brandIds = (brandUsers || []).map((bu: any) => bu.brand_id)
 
   // All positivations with visit date
   const { data: positivations } = await supabase
     .from('positivations')
     .select('id, status, created_at, visits(visited_at, venue_id)')
-    .eq('brand_id', brandId)
+    .in('brand_id', brandIds)
 
   // Unique venues this month
   const { data: thisMonthPos } = await supabase
     .from('positivations')
     .select('visits(visited_at, venue_id)')
-    .eq('brand_id', brandId)
+    .in('brand_id', brandIds)
     .gte('visits.visited_at', start)
     .lte('visits.visited_at', end)
 
