@@ -21,7 +21,7 @@ export default async function BrandFollowupsPage({ searchParams }: { searchParam
   const { data: followups } = await supabase
     .from('followups')
     .select('*, visits(venues(name, city))')
-    .in('brand_id', brandIds)
+    .or(`brand_id.in.(${brandIds.join(',')}),brand_id.is.null`)
     .order('due_date', { ascending: true, nullsFirst: false })
 
   const groupedByStatus: Record<string, any[]> = { aberto: [], concluido: [], cancelado: [] }

@@ -32,9 +32,9 @@ export default async function BrandDashboard({ searchParams }: { searchParams: {
     { data: openFollowups },
   ] = await Promise.all([
     supabase.from('positivations').select('id, status, visits(visited_at, venue_id)').in('brand_id', brandIds).gte('visits.visited_at', start).lte('visits.visited_at', end),
-    supabase.from('followups').select('visits(visited_at, venue_id)').in('brand_id', brandIds).gte('visits.visited_at', start).lte('visits.visited_at', end),
+    supabase.from('followups').select('visits(visited_at, venue_id)').or(`brand_id.in.(${brandIds.join(',')}),brand_id.is.null`).gte('visits.visited_at', start).lte('visits.visited_at', end),
     supabase.from('positivations').select('status').in('brand_id', brandIds),
-    supabase.from('followups').select('id, content, due_date, status, visits(venues(name))').in('brand_id', brandIds).eq('status', 'aberto').order('due_date', { ascending: true }).limit(5),
+    supabase.from('followups').select('id, content, due_date, status, visits(venues(name))').or(`brand_id.in.(${brandIds.join(',')}),brand_id.is.null`).eq('status', 'aberto').order('due_date', { ascending: true }).limit(5),
   ])
 
   const venueIdsThisMonth = new Set([

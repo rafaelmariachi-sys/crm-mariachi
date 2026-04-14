@@ -28,7 +28,7 @@ export default async function BrandVisitsPage({ searchParams }: { searchParams: 
   const { data: followups } = await supabase
     .from('followups')
     .select('visit_id, content, due_date, status, visits(id, visited_at, notes, venues(name, address, neighborhood, city, type))')
-    .in('brand_id', brandIds)
+    .or(`brand_id.in.(${brandIds.join(',')}),brand_id.is.null`)
 
   const visitMap = new Map<string, { visit: any; positivations: any[]; followups: any[] }>()
 
