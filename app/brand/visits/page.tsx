@@ -34,10 +34,16 @@ export default async function BrandVisitsPage() {
 
   const { data: followups } = await supabase
     .from('followups')
-    .select(`visit_id, content, due_date, status`)
+    .select(`
+      visit_id, content, due_date, status,
+      visits(
+        id, visited_at, notes,
+        venues(name, address, neighborhood, city, type)
+      )
+    `)
     .in('brand_id', brandIds)
 
-  // Group by visit
+  // Group by visit — include visits from positivations AND followups
   const visitMap = new Map<string, {
     visit: any
     positivations: any[]
@@ -54,9 +60,12 @@ export default async function BrandVisitsPage() {
   })
 
   followups?.forEach((f: any) => {
-    if (visitMap.has(f.visit_id)) {
-      visitMap.get(f.visit_id)!.followups.push(f)
+    if (!f.visits) return
+    const visitId = f.visits.id
+    if (!visitMap.has(visitId)) {
+      visitMap.set(visitId, { visit: f.visits, positivations: [], followups: [] })
     }
+    visitMap.get(visitId)!.followups.push(f)
   })
 
   const visits = Array.from(visitMap.values()).sort(

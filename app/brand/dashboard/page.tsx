@@ -1,10 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { StatsCard } from '@/components/stats-card'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { getCurrentMonthRange, formatDate, getDueDateLabel } from '@/lib/utils'
 import { CalendarCheck, CheckCircle, Clock, AlertCircle } from 'lucide-react'
-import { POSITIVATION_STATUS_LABELS, POSITIVATION_STATUS_COLORS, FOLLOWUP_STATUS_COLORS, PositivationStatus } from '@/lib/types'
+import { POSITIVATION_STATUS_LABELS, POSITIVATION_STATUS_COLORS, PositivationStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 
@@ -25,13 +24,20 @@ export default async function BrandDashboard() {
 
   const [
     { data: positivationsThisMonth },
+    { data: followupsThisMonth },
     { data: allPositivations },
     { data: openFollowups },
-    { data: recentVisits },
   ] = await Promise.all([
     supabase
       .from('positivations')
       .select('id, status, visits(visited_at, venue_id)')
+      .in('brand_id', brandIds)
+      .gte('visits.visited_at', start)
+      .lte('visits.visited_at', end),
+
+    supabase
+      .from('followups')
+      .select('visits(visited_at, venue_id)')
       .in('brand_id', brandIds)
       .gte('visits.visited_at', start)
       .lte('visits.visited_at', end),
@@ -48,20 +54,14 @@ export default async function BrandDashboard() {
       .eq('status', 'aberto')
       .order('due_date', { ascending: true })
       .limit(5),
-
-    supabase
-      .from('positivations')
-      .select('visit_id, visits(id, visited_at, venues(name, city, type))')
-      .in('brand_id', brandIds)
-      .order('created_at', { ascending: false })
-      .limit(5),
   ])
 
-  const uniqueVenuesThisMonth = new Set(
-    (positivationsThisMonth || [])
-      .filter((p: any) => p.visits?.venue_id)
-      .map((p: any) => p.visits?.venue_id)
-  ).size
+  // Count unique venues this month from BOTH positivations and followups
+  const venueIdsThisMonth = new Set([
+    ...(positivationsThisMonth || []).filter((p: any) => p.visits?.venue_id).map((p: any) => p.visits.venue_id),
+    ...(followupsThisMonth || []).filter((f: any) => f.visits?.venue_id).map((f: any) => f.visits.venue_id),
+  ])
+  const uniqueVenuesThisMonth = venueIdsThisMonth.size
 
   const statusCounts: Record<string, number> = {}
   ;(allPositivations || []).forEach((p: any) => {
