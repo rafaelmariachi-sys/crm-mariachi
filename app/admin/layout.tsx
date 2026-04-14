@@ -8,14 +8,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   if (!user) redirect('/login')
 
-  // Verify admin (no brand_user record)
-  const { data: brandUser } = await supabase
+  // Verify admin (no brand_user records)
+  const { data: brandUsers } = await supabase
     .from('brand_users')
     .select('brand_id')
     .eq('user_id', user.id)
-    .maybeSingle()
+    .limit(1)
 
-  if (brandUser) redirect('/brand/dashboard')
+  if (brandUsers && brandUsers.length > 0) redirect('/brand/dashboard')
 
   return (
     <div className="min-h-screen bg-background">

@@ -8,15 +8,14 @@ export default async function BrandLayout({ children }: { children: React.ReactN
 
   if (!user) redirect('/login')
 
-  const { data: brandUser } = await supabase
+  const { data: brandUsers } = await supabase
     .from('brand_users')
     .select('brand_id, brands(name)')
     .eq('user_id', user.id)
-    .maybeSingle()
 
-  if (!brandUser) redirect('/admin/dashboard')
+  if (!brandUsers || brandUsers.length === 0) redirect('/admin/dashboard')
 
-  const brandName = (brandUser as any).brands?.name
+  const brandName = (brandUsers as any[]).map((bu) => bu.brands?.name).filter(Boolean).join(' & ')
 
   return (
     <div className="min-h-screen bg-background">
