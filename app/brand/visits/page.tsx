@@ -5,66 +5,44 @@ import { Badge } from '@/components/ui/badge'
 import { POSITIVATION_STATUS_LABELS, POSITIVATION_STATUS_COLORS, FOLLOWUP_STATUS_LABELS } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { CalendarCheck, MapPin } from 'lucide-react'
+import { BrandTabs } from '@/components/brand/brand-tabs'
 
 export const dynamic = 'force-dynamic'
 
-export default async function BrandVisitsPage() {
+export default async function BrandVisitsPage({ searchParams }: { searchParams: { brand?: string } }) {
   const supabase = createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
-  const { data: brandUsers } = await supabase
-    .from('brand_users')
-    .select('brand_id')
-    .eq('user_id', user!.id)
+  const { data: brandUsers } = await supabase.from('brand_users').select('brand_id, brands(id, name)').eq('user_id', user!.id)
 
-  const brandIds = (brandUsers || []).map((bu: any) => bu.brand_id)
+  const allBrands = (brandUsers || []).map((bu: any) => ({ id: bu.brands.id, name: bu.brands.name }))
+  const selectedBrand = searchParams.brand
+  const brandIds = selectedBrand ? [selectedBrand] : allBrands.map((b) => b.id)
 
-  // Get all visits with positivations or followups for this brand
   const { data: positivations } = await supabase
     .from('positivations')
-    .select(`
-      id, product_name, status, notes,
-      visits(
-        id, visited_at, notes,
-        venues(name, address, neighborhood, city, type)
-      )
-    `)
+    .select('id, product_name, status, notes, visits(id, visited_at, notes, venues(name, address, neighborhood, city, type))')
     .in('brand_id', brandIds)
     .order('created_at', { ascending: false })
 
   const { data: followups } = await supabase
     .from('followups')
-    .select(`
-      visit_id, content, due_date, status,
-      visits(
-        id, visited_at, notes,
-        venues(name, address, neighborhood, city, type)
-      )
-    `)
+    .select('visit_id, content, due_date, status, visits(id, visited_at, notes, venues(name, address, neighborhood, city, type))')
     .in('brand_id', brandIds)
 
-  // Group by visit — include visits from positivations AND followups
-  const visitMap = new Map<string, {
-    visit: any
-    positivations: any[]
-    followups: any[]
-  }>()
+  const visitMap = new Map<string, { visit: any; positivations: any[]; followups: any[] }>()
 
   positivations?.forEach((p: any) => {
     if (!p.visits) return
     const visitId = p.visits.id
-    if (!visitMap.has(visitId)) {
-      visitMap.set(visitId, { visit: p.visits, positivations: [], followups: [] })
-    }
+    if (!visitMap.has(visitId)) visitMap.set(visitId, { visit: p.visits, positivations: [], followups: [] })
     visitMap.get(visitId)!.positivations.push(p)
   })
 
   followups?.forEach((f: any) => {
     if (!f.visits) return
     const visitId = f.visits.id
-    if (!visitMap.has(visitId)) {
-      visitMap.set(visitId, { visit: f.visits, positivations: [], followups: [] })
-    }
+    if (!visitMap.has(visitId)) visitMap.set(visitId, { visit: f.visits, positivations: [], followups: [] })
     visitMap.get(visitId)!.followups.push(f)
   })
 
@@ -76,26 +54,26 @@ export default async function BrandVisitsPage() {
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Visitas</h1>
-        <p className="text-muted-foreground text-sm">{visits.length} visitas com sua marca</p>
+        <p className="text-muted-foreground text-sm">{visits.length} visitas</p>
       </div>
+
+      <BrandTabs brands={allBrands} />
 
       {visits.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
           <CalendarCheck className="h-10 w-10 mx-auto mb-3 opacity-30" />
-          <p>Nenhuma visita registrada para sua marca</p>
+          <p>Nenhuma visita registrada</p>
         </div>
       ) : (
         <div className="space-y-4">
           {visits.map(({ visit, positivations: pos, followups: fols }) => (
             <Card key={visit.id}>
               <CardContent className="p-5 space-y-4">
-                {/* Visit header */}
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-semibold">{visit.venues?.name}</p>
                     <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                      <MapPin className="h-3 w-3" />
-                      {visit.venues?.neighborhood} · {visit.venues?.city}
+                      <MapPin className="h-3 w-3" />{visit.venues?.neighborhood} · {visit.venues?.city}
                     </p>
                   </div>
                   <div className="text-right">
@@ -103,12 +81,7 @@ export default async function BrandVisitsPage() {
                     <Badge variant="outline" className="text-xs mt-1">{visit.venues?.type}</Badge>
                   </div>
                 </div>
-
-                {visit.notes && (
-                  <p className="text-sm text-muted-foreground border-l-2 border-border pl-3">{visit.notes}</p>
-                )}
-
-                {/* Positivations */}
+                {visit.notes && <p className="text-sm text-muted-foreground border-l-2 border-border pl-3">{visit.notes}</p>}
                 {pos.length > 0 && (
                   <div>
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Positivações</p>
@@ -127,8 +100,6 @@ export default async function BrandVisitsPage() {
                     </div>
                   </div>
                 )}
-
-                {/* Followups */}
                 {fols.length > 0 && (
                   <div>
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Follow-ups</p>
