@@ -25,21 +25,29 @@ export default async function BrandDashboard({ searchParams }: { searchParams: {
   const brandIds = selectedBrand ? [selectedBrand] : allBrands.map((b) => b.id)
   const brandLabel = selectedBrand ? allBrands.find((b) => b.id === selectedBrand)?.name : allBrands.map((b) => b.name).join(' & ')
 
+  const brandOr = `brand_id.in.(${brandIds.join(',')}),brand_id.is.null`
+
   const [
-    { data: positivationsThisMonth },
-    { data: followupsThisMonth },
+    { data: allPosWithVisit },
+    { data: allFollowupsWithVisit },
     { data: allPositivations },
     { data: openFollowups },
   ] = await Promise.all([
-    supabase.from('positivations').select('id, status, visits(visited_at, venue_id)').in('brand_id', brandIds).gte('visits.visited_at', start).lte('visits.visited_at', end),
-    supabase.from('followups').select('visits(visited_at, venue_id)').or(`brand_id.in.(${brandIds.join(',')}),brand_id.is.null`).gte('visits.visited_at', start).lte('visits.visited_at', end),
+    supabase.from('positivations').select('visits(visited_at, venue_id)').in('brand_id', brandIds),
+    supabase.from('followups').select('visits(visited_at, venue_id)').or(brandOr),
     supabase.from('positivations').select('status').in('brand_id', brandIds),
-    supabase.from('followups').select('id, content, due_date, status, visits(venues(name))').or(`brand_id.in.(${brandIds.join(',')}),brand_id.is.null`).eq('status', 'aberto').order('due_date', { ascending: true }).limit(5),
+    supabase.from('followups').select('id, content, due_date, status, visits(venues(name))').or(brandOr).eq('status', 'aberto').order('due_date', { ascending: true }).limit(5),
   ])
 
+  const inRange = (dateStr: string) => dateStr >= start && dateStr <= end
+
   const venueIdsThisMonth = new Set([
-    ...(positivationsThisMonth || []).filter((p: any) => p.visits?.venue_id).map((p: any) => p.visits.venue_id),
-    ...(followupsThisMonth || []).filter((f: any) => f.visits?.venue_id).map((f: any) => f.visits.venue_id),
+    ...(allPosWithVisit || [])
+      .filter((p: any) => p.visits?.visited_at && inRange(p.visits.visited_at) && p.visits?.venue_id)
+      .map((p: any) => p.visits.venue_id),
+    ...(allFollowupsWithVisit || [])
+      .filter((f: any) => f.visits?.visited_at && inRange(f.visits.visited_at) && f.visits?.venue_id)
+      .map((f: any) => f.visits.venue_id),
   ])
 
   const statusCounts: Record<string, number> = {}
