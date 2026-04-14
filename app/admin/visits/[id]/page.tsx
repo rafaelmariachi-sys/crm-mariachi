@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { ArrowLeft, MapPin, CalendarCheck, Package, MessageSquare } from 'lucide-react'
+import { ArrowLeft, MapPin, CalendarCheck, Package, MessageSquare, Pencil } from 'lucide-react'
 import { POSITIVATION_STATUS_LABELS, POSITIVATION_STATUS_COLORS, FOLLOWUP_STATUS_LABELS, FOLLOWUP_STATUS_COLORS } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -31,17 +31,25 @@ export default async function VisitDetailPage({ params }: { params: { id: string
 
   return (
     <div className="p-6 max-w-2xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <Link href="/admin/visits">
-          <Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold">{v.venues?.name}</h1>
-          <p className="text-muted-foreground text-sm flex items-center gap-1">
-            <CalendarCheck className="h-3 w-3" />
-            {formatDate(v.visited_at)}
-          </p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Link href="/admin/visits">
+            <Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold">{v.venues?.name}</h1>
+            <p className="text-muted-foreground text-sm flex items-center gap-1">
+              <CalendarCheck className="h-3 w-3" />
+              {formatDate(v.visited_at)}
+            </p>
+          </div>
         </div>
+        <Link href={`/admin/visits/${v.id}/edit`}>
+          <Button variant="outline" size="sm">
+            <Pencil className="h-3.5 w-3.5 mr-2" />
+            Editar
+          </Button>
+        </Link>
       </div>
 
       {/* Venue info */}
