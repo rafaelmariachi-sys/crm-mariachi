@@ -12,6 +12,7 @@ import {
   X,
   Wine,
   MapPin,
+  Images,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -24,6 +25,7 @@ const navItems = [
   { href: '/brand/venues', label: 'Casas', icon: MapPin },
   { href: '/brand/visits', label: 'Visitas', icon: CalendarCheck },
   { href: '/brand/followups', label: 'Follow-ups', icon: MessageSquare },
+  { href: '/brand/media', label: 'Mídia', icon: Images },
   { href: '/brand/reports', label: 'Relatórios', icon: BarChart3 },
 ]
 

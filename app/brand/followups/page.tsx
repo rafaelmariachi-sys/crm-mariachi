@@ -28,7 +28,7 @@ export default async function BrandFollowupsPage({ searchParams }: { searchParam
   followups?.forEach((f: any) => { groupedByStatus[f.status]?.push(f) })
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-5">
       <div>
         <h1 className="text-2xl font-bold">Follow-ups</h1>
         <p className="text-muted-foreground text-sm">{followups?.length ?? 0} registros</p>

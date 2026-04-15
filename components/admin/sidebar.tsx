@@ -14,6 +14,7 @@ import {
   Wine,
   CalendarRange,
   Star,
+  Images,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -28,6 +29,7 @@ const navItems = [
   { href: '/admin/positivations', label: 'Positivações', icon: Star },
   { href: '/admin/followups', label: 'Follow-ups', icon: MessageSquare },
   { href: '/admin/agenda', label: 'Agenda', icon: CalendarRange },
+  { href: '/admin/media', label: 'Mídia', icon: Images },
   { href: '/admin/brands', label: 'Marcas', icon: Package },
 ]
 

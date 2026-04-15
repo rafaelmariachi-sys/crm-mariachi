@@ -59,14 +59,14 @@ export default async function AdminDashboard() {
   })
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-5">
       <div>
         <h1 className="text-2xl font-bold">Dashboard</h1>
         <p className="text-muted-foreground text-sm">Visão geral do mês atual</p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatsCard
           title="Visitas no mês"
           value={visitsThisMonth ?? 0}
@@ -171,7 +171,7 @@ export default async function AdminDashboard() {
           <CardTitle className="text-base">Positivações por status</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {(Object.keys(statusCounts) as PositivationStatus[]).map((status) => (
               <div key={status} className={cn('p-4 rounded-lg border', POSITIVATION_STATUS_COLORS[status])}>
                 <p className="text-2xl font-bold">{statusCounts[status]}</p>

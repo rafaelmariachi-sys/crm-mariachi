@@ -47,7 +47,7 @@ export default async function BrandVenuesPage({ searchParams }: { searchParams: 
   )
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-5">
       <div>
         <h1 className="text-2xl font-bold">Casas</h1>
         <p className="text-muted-foreground text-sm">{venues.length} casas positivadas</p>

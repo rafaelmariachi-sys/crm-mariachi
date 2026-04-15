@@ -84,7 +84,7 @@ export default async function BrandReportsPage({ searchParams }: { searchParams:
     .map((b) => ({ ...b, data: b.data.sort((a, c) => c.count - a.count) }))
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-5">
       <div>
         <h1 className="text-2xl font-bold">Relatórios</h1>
         <p className="text-muted-foreground text-sm">Visão analítica</p>
