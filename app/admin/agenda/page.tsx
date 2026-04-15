@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { CalendarRange, MapPin } from 'lucide-react'
+import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,11 +45,11 @@ export default async function AgendaPage() {
   ])
 
   // Deduplica por venue id, ordem alfabética
-  const venueMap = new Map<string, { name: string; neighborhood: string; city: string }>()
+  const venueMap = new Map<string, { id: string; name: string; neighborhood: string; city: string }>()
 
   const addVenue = (v: any) => {
     if (!v?.id) return
-    if (!venueMap.has(v.id)) venueMap.set(v.id, { name: v.name, neighborhood: v.neighborhood || '', city: v.city || '' })
+    if (!venueMap.has(v.id)) venueMap.set(v.id, { id: v.id, name: v.name, neighborhood: v.neighborhood || '', city: v.city || '' })
   }
 
   negociacao?.forEach((p: any) => addVenue(p.visits?.venues))
@@ -123,18 +124,20 @@ export default async function AgendaPage() {
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                 {dayVenues.map((v, i) => (
-                  <div key={v.name + i} className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/40">
-                    <span className="text-xs text-muted-foreground w-4 shrink-0 mt-0.5">{String(i + 1)}.</span>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium leading-tight">{v.name}</p>
-                      {(v.neighborhood || v.city) && (
-                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                          <MapPin className="h-2.5 w-2.5" />
-                          {[v.neighborhood, v.city].filter(Boolean).join(' · ')}
-                        </p>
-                      )}
+                  <Link key={v.id} href={`/admin/agenda/${v.id}`}>
+                    <div className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/40 hover:bg-primary/10 hover:border-primary/30 border border-transparent transition-colors cursor-pointer">
+                      <span className="text-xs text-muted-foreground w-4 shrink-0 mt-0.5">{String(i + 1)}.</span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium leading-tight text-primary hover:underline">{v.name}</p>
+                        {(v.neighborhood || v.city) && (
+                          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                            <MapPin className="h-2.5 w-2.5" />
+                            {[v.neighborhood, v.city].filter(Boolean).join(' · ')}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </CardContent>
