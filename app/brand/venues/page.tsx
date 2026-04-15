@@ -20,14 +20,15 @@ export default async function BrandVenuesPage({ searchParams }: { searchParams: 
 
   const { data: positivations } = await supabase
     .from('positivations')
-    .select('id, product_name, status, brand_id, brands(name), visits(venue_id, venues(id, name, address, neighborhood, city, type, phone, email, cnpj, razao_social, delivery_day, contact_name))')
+    .select('id, product_name, status, brand_id, brands(name), venue_id, venues(id, name, address, neighborhood, city, type, phone, email, cnpj, razao_social, delivery_day, contact_name), visits(venue_id, venues(id, name, address, neighborhood, city, type, phone, email, cnpj, razao_social, delivery_day, contact_name))')
     .in('brand_id', brandIds)
 
-  // Group by venue
+  // Group by venue — supports both independent (venue_id) and visit-linked positivations
   const venueMap = new Map<string, { venue: any; products: { brand: string; product_name: string; status: PositivationStatus }[] }>()
 
   positivations?.forEach((p: any) => {
-    const venue = p.visits?.venues
+    // Prefer direct venue_id, fallback to via visit
+    const venue = p.venues || p.visits?.venues
     if (!venue) return
     const venueId = venue.id
     if (!venueMap.has(venueId)) {

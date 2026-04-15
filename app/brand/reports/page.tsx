@@ -21,13 +21,25 @@ export default async function BrandReportsPage({ searchParams }: { searchParams:
   const brandIds = selectedBrand ? [selectedBrand] : allBrands.map((b) => b.id)
 
   const { data: positivations } = await supabase
-    .from('positivations').select('id, status, product_name, brand_id, brands(name), created_at, visits(visited_at, venue_id)').in('brand_id', brandIds)
+    .from('positivations')
+    .select('id, status, product_name, brand_id, brands(name), created_at, positivated_at, venue_id, visits(visited_at, venue_id)')
+    .in('brand_id', brandIds)
 
-  const { data: thisMonthPos } = await supabase
-    .from('positivations').select('visits(visited_at, venue_id)').in('brand_id', brandIds)
-    .gte('visits.visited_at', start).lte('visits.visited_at', end)
+  // Helper: get the effective date and venue_id for a positivation
+  function getPosDate(p: any): string | null {
+    return p.positivated_at || p.visits?.visited_at || null
+  }
+  function getPosVenueId(p: any): string | null {
+    return p.venue_id || p.visits?.venue_id || null
+  }
 
-  const uniqueVenues = new Set((thisMonthPos || []).map((p: any) => p.visits?.venue_id).filter(Boolean)).size
+  // Unique venues this month (both direct and via visit)
+  const uniqueVenues = new Set(
+    (positivations || [])
+      .filter((p: any) => { const d = getPosDate(p); return d && d >= start && d <= end })
+      .map((p: any) => getPosVenueId(p))
+      .filter(Boolean)
+  ).size
 
   const monthlyData: Record<string, number> = {}
   const now = new Date()
@@ -37,8 +49,9 @@ export default async function BrandReportsPage({ searchParams }: { searchParams:
     monthlyData[key] = 0
   }
   positivations?.forEach((p: any) => {
-    if (!p.visits?.visited_at) return
-    const d = new Date(p.visits.visited_at)
+    const dateStr = getPosDate(p)
+    if (!dateStr) return
+    const d = new Date(dateStr)
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
     if (key in monthlyData) monthlyData[key]++
   })
