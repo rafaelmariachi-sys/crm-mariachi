@@ -21,7 +21,7 @@ export default async function BrandReportsPage({ searchParams }: { searchParams:
   const brandIds = selectedBrand ? [selectedBrand] : allBrands.map((b) => b.id)
 
   const { data: positivations } = await supabase
-    .from('positivations').select('id, status, product_name, created_at, visits(visited_at, venue_id)').in('brand_id', brandIds)
+    .from('positivations').select('id, status, product_name, brand_id, brands(name), created_at, visits(visited_at, venue_id)').in('brand_id', brandIds)
 
   const { data: thisMonthPos } = await supabase
     .from('positivations').select('visits(visited_at, venue_id)').in('brand_id', brandIds)
@@ -55,15 +55,20 @@ export default async function BrandReportsPage({ searchParams }: { searchParams:
     name: POSITIVATION_STATUS_LABELS[status as PositivationStatus] || status, value,
   }))
 
-  const skuCounts: Record<string, number> = {}
+  // SKU breakdown por marca
+  const skuByBrand: Record<string, { brandName: string; data: { sku: string; count: number }[] }> = {}
   positivations?.forEach((p: any) => {
+    const brandId = p.brand_id
+    const brandName = (p as any).brands?.name || brandId
     const sku = p.product_name || 'Sem SKU'
-    skuCounts[sku] = (skuCounts[sku] || 0) + 1
+    if (!skuByBrand[brandId]) skuByBrand[brandId] = { brandName, data: [] }
+    const existing = skuByBrand[brandId].data.find((d) => d.sku === sku)
+    if (existing) existing.count++
+    else skuByBrand[brandId].data.push({ sku, count: 1 })
   })
-  const skuData = Object.entries(skuCounts)
-    .map(([sku, count]) => ({ sku, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 15)
+  const skuCharts = Object.values(skuByBrand)
+    .filter((b) => b.data.length > 0)
+    .map((b) => ({ ...b, data: b.data.sort((a, c) => c.count - a.count) }))
 
   return (
     <div className="p-6 space-y-6">
@@ -79,7 +84,7 @@ export default async function BrandReportsPage({ searchParams }: { searchParams:
         <StatsCard title="Total de positivações" value={positivations?.length ?? 0} icon={TrendingUp} />
       </div>
 
-      <BrandCharts barData={barData} pieData={pieData} skuData={skuData} />
+      <BrandCharts barData={barData} pieData={pieData} skuCharts={skuCharts} />
     </div>
   )
 }

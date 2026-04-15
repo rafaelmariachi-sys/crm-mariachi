@@ -12,31 +12,31 @@ const SKU_COLORS = ['#6366f1','#8b5cf6','#a78bfa','#c4b5fd','#ddd6fe','#ede9fe',
 interface BrandChartsProps {
   barData: { month: string; count: number }[]
   pieData: { name: string; value: number }[]
-  skuData: { sku: string; count: number }[]
+  skuCharts: { brandName: string; data: { sku: string; count: number }[] }[]
 }
 
-export function BrandCharts({ barData, pieData, skuData }: BrandChartsProps) {
+export function BrandCharts({ barData, pieData, skuCharts }: BrandChartsProps) {
   return (
     <div className="space-y-6">
 
-      {/* SKU ranking */}
-      {skuData.length > 0 && (
-        <Card>
+      {/* SKU ranking por marca */}
+      {skuCharts.map((brand) => (
+        <Card key={brand.brandName}>
           <CardHeader>
-            <CardTitle className="text-base">Positivações por SKU</CardTitle>
+            <CardTitle className="text-base">SKUs — {brand.brandName}</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={Math.max(200, skuData.length * 36)}>
-              <BarChart data={skuData} layout="vertical" margin={{ top: 0, right: 24, left: 8, bottom: 0 }}>
+            <ResponsiveContainer width="100%" height={Math.max(120, brand.data.length * 40)}>
+              <BarChart data={brand.data} layout="vertical" margin={{ top: 0, right: 24, left: 8, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
-                <YAxis type="category" dataKey="sku" width={180} tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} />
+                <YAxis type="category" dataKey="sku" width={200} tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} />
                 <Tooltip
                   contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' }}
                   formatter={(v: any) => [v, 'Positivações']}
                 />
                 <Bar dataKey="count" name="Positivações" radius={[0, 4, 4, 0]}>
-                  {skuData.map((_, index) => (
+                  {brand.data.map((_, index) => (
                     <Cell key={index} fill={SKU_COLORS[index % SKU_COLORS.length]} />
                   ))}
                 </Bar>
@@ -44,7 +44,7 @@ export function BrandCharts({ barData, pieData, skuData }: BrandChartsProps) {
             </ResponsiveContainer>
           </CardContent>
         </Card>
-      )}
+      ))}
 
     <div className="grid lg:grid-cols-2 gap-6">
       <Card>
