@@ -22,6 +22,7 @@ export default async function BrandVenuesPage({ searchParams }: { searchParams: 
     .from('positivations')
     .select('id, product_name, status, brand_id, brands(name), venue_id, venues(id, name, address, neighborhood, city, type, phone, email, cnpj, razao_social, delivery_day, contact_name), visits(venue_id, venues(id, name, address, neighborhood, city, type, phone, email, cnpj, razao_social, delivery_day, contact_name))')
     .in('brand_id', brandIds)
+    .eq('status', 'positivado')
 
   // Group by venue — supports both independent (venue_id) and visit-linked positivations
   const venueMap = new Map<string, { venue: any; products: { brand: string; product_name: string; status: PositivationStatus }[] }>()
