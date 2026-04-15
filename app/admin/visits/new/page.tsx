@@ -29,6 +29,7 @@ export default function NewVisitPage() {
 
   const [brands, setBrands] = useState<Brand[]>([])
   const [venues, setVenues] = useState<Venue[]>([])
+  const [brandSkus, setBrandSkus] = useState<Record<string, { id: string; name: string }[]>>({})
   const [saving, setSaving] = useState(false)
   const [venueSearch, setVenueSearch] = useState('')
   const [showDropdown, setShowDropdown] = useState(false)
@@ -49,9 +50,16 @@ export default function NewVisitPage() {
     Promise.all([
       supabase.from('brands').select('*').order('name'),
       supabase.from('venues').select('*').order('name'),
-    ]).then(([{ data: b }, { data: v }]) => {
+      supabase.from('brand_skus').select('*').eq('active', true).order('display_order'),
+    ]).then(([{ data: b }, { data: v }, { data: s }]) => {
       setBrands(b || [])
       setVenues(v || [])
+      const skuMap: Record<string, { id: string; name: string }[]> = {}
+      ;(s || []).forEach((sku: any) => {
+        if (!skuMap[sku.brand_id]) skuMap[sku.brand_id] = []
+        skuMap[sku.brand_id].push({ id: sku.id, name: sku.name })
+      })
+      setBrandSkus(skuMap)
     })
   }, [])
 
@@ -123,7 +131,10 @@ export default function NewVisitPage() {
   }
   function removePositivation(i: number) { setPositivations(positivations.filter((_, idx) => idx !== i)) }
   function updatePositivation(i: number, field: keyof PositivationForm, value: string) {
-    const updated = [...positivations]; updated[i] = { ...updated[i], [field]: value }; setPositivations(updated)
+    const updated = [...positivations]
+    updated[i] = { ...updated[i], [field]: value }
+    if (field === 'brand_id') updated[i].product_name = ''
+    setPositivations(updated)
   }
 
   function addFollowup() {
@@ -354,8 +365,19 @@ export default function NewVisitPage() {
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Produto *</Label>
-                  <Input placeholder="Ex: Johnnie Walker Red" value={p.product_name} onChange={(e) => updatePositivation(i, 'product_name', e.target.value)} className="h-9" />
+                  <Label className="text-xs">Produto / SKU *</Label>
+                  {p.brand_id && brandSkus[p.brand_id]?.length > 0 ? (
+                    <Select value={p.product_name} onValueChange={(v) => updatePositivation(i, 'product_name', v)}>
+                      <SelectTrigger className="h-9"><SelectValue placeholder="Selecionar SKU" /></SelectTrigger>
+                      <SelectContent>
+                        {brandSkus[p.brand_id].map((sku) => (
+                          <SelectItem key={sku.id} value={sku.name}>{sku.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input placeholder="Ex: Produto X" value={p.product_name} onChange={(e) => updatePositivation(i, 'product_name', e.target.value)} className="h-9" />
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Notas</Label>

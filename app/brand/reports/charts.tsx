@@ -7,14 +7,45 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 const COLORS = ['#10b981', '#f59e0b', '#ef4444', '#3b82f6']
+const SKU_COLORS = ['#6366f1','#8b5cf6','#a78bfa','#c4b5fd','#ddd6fe','#ede9fe','#f5f3ff','#e0e7ff','#c7d2fe','#a5b4fc','#818cf8','#6366f1','#4f46e5','#4338ca','#3730a3']
 
 interface BrandChartsProps {
   barData: { month: string; count: number }[]
   pieData: { name: string; value: number }[]
+  skuData: { sku: string; count: number }[]
 }
 
-export function BrandCharts({ barData, pieData }: BrandChartsProps) {
+export function BrandCharts({ barData, pieData, skuData }: BrandChartsProps) {
   return (
+    <div className="space-y-6">
+
+      {/* SKU ranking */}
+      {skuData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Positivações por SKU</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={Math.max(200, skuData.length * 36)}>
+              <BarChart data={skuData} layout="vertical" margin={{ top: 0, right: 24, left: 8, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
+                <YAxis type="category" dataKey="sku" width={180} tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' }}
+                  formatter={(v: any) => [v, 'Positivações']}
+                />
+                <Bar dataKey="count" name="Positivações" radius={[0, 4, 4, 0]}>
+                  {skuData.map((_, index) => (
+                    <Cell key={index} fill={SKU_COLORS[index % SKU_COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
     <div className="grid lg:grid-cols-2 gap-6">
       <Card>
         <CardHeader>
@@ -82,6 +113,7 @@ export function BrandCharts({ barData, pieData }: BrandChartsProps) {
           )}
         </CardContent>
       </Card>
+    </div>
     </div>
   )
 }

@@ -21,7 +21,7 @@ export default async function BrandReportsPage({ searchParams }: { searchParams:
   const brandIds = selectedBrand ? [selectedBrand] : allBrands.map((b) => b.id)
 
   const { data: positivations } = await supabase
-    .from('positivations').select('id, status, created_at, visits(visited_at, venue_id)').in('brand_id', brandIds)
+    .from('positivations').select('id, status, product_name, created_at, visits(visited_at, venue_id)').in('brand_id', brandIds)
 
   const { data: thisMonthPos } = await supabase
     .from('positivations').select('visits(visited_at, venue_id)').in('brand_id', brandIds)
@@ -55,6 +55,16 @@ export default async function BrandReportsPage({ searchParams }: { searchParams:
     name: POSITIVATION_STATUS_LABELS[status as PositivationStatus] || status, value,
   }))
 
+  const skuCounts: Record<string, number> = {}
+  positivations?.forEach((p: any) => {
+    const sku = p.product_name || 'Sem SKU'
+    skuCounts[sku] = (skuCounts[sku] || 0) + 1
+  })
+  const skuData = Object.entries(skuCounts)
+    .map(([sku, count]) => ({ sku, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 15)
+
   return (
     <div className="p-6 space-y-6">
       <div>
@@ -69,7 +79,7 @@ export default async function BrandReportsPage({ searchParams }: { searchParams:
         <StatsCard title="Total de positivações" value={positivations?.length ?? 0} icon={TrendingUp} />
       </div>
 
-      <BrandCharts barData={barData} pieData={pieData} />
+      <BrandCharts barData={barData} pieData={pieData} skuData={skuData} />
     </div>
   )
 }
