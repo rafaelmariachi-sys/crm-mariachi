@@ -75,10 +75,11 @@ export default function BrandMediaPage() {
       const brandIds = allBrands.map((b) => b.id)
       if (brandIds.length === 0) { setLoading(false); return }
 
+      // Busca mídia da marca + cardápios visíveis para todas as marcas (brand_id null)
       const { data } = await supabase
         .from('brand_media')
         .select('*, brands(name)')
-        .in('brand_id', brandIds)
+        .or(`brand_id.in.(${brandIds.join(',')}),brand_id.is.null`)
         .order('created_at', { ascending: false })
 
       if (data) {
@@ -222,6 +223,11 @@ export default function BrandMediaPage() {
                   <Badge className={cn('text-[10px] px-1.5 py-0 border', CATEGORY_COLORS[item.category])} variant="outline">
                     {CATEGORY_LABELS[item.category]}
                   </Badge>
+                  {!item.brand_id && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-blue-200 bg-blue-500/10 text-blue-700">
+                      Todas as marcas
+                    </Badge>
+                  )}
                   <button
                     onClick={() => handleDownload(item)}
                     disabled={downloading === item.id}

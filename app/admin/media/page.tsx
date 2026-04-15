@@ -111,8 +111,11 @@ export default function AdminMediaPage() {
     setSelectedFiles((prev) => prev.filter((_, idx) => idx !== i))
   }
 
+  // Cardápio é sempre visível para todas as marcas (brand_id null)
+  const isAllBrands = uploadCategory === 'cardapio'
+
   async function handleUpload() {
-    if (!uploadBrandId) {
+    if (!isAllBrands && !uploadBrandId) {
       toast({ title: 'Selecione uma marca', variant: 'destructive' }); return
     }
     if (selectedFiles.length === 0) {
@@ -122,12 +125,13 @@ export default function AdminMediaPage() {
     setUploading(true)
     setUploadProgress(0)
 
+    const brandFolder = isAllBrands ? 'todas' : uploadBrandId
     let done = 0
     const errors: string[] = []
 
     for (const file of selectedFiles) {
       const ext = file.name.split('.').pop()
-      const path = `${uploadBrandId}/${uploadCategory}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+      const path = `${brandFolder}/${uploadCategory}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
 
       const { error: storageError } = await supabase.storage
         .from('brand-media')
@@ -138,7 +142,7 @@ export default function AdminMediaPage() {
       } else {
         const title = uploadTitle.trim() || (selectedFiles.length === 1 ? file.name.replace(/\.[^.]+$/, '') : null)
         await supabase.from('brand_media').insert({
-          brand_id: uploadBrandId,
+          brand_id: isAllBrands ? null : uploadBrandId,
           category: uploadCategory,
           title: title || null,
           storage_path: path,
@@ -187,7 +191,9 @@ export default function AdminMediaPage() {
 
   const filtered = media.filter((m) => {
     const matchCat = catFilter === 'all' || m.category === catFilter
-    const matchBrand = brandFilter === 'all' || m.brand_id === brandFilter
+    const matchBrand =
+      brandFilter === 'all' ||
+      (brandFilter === 'todas' ? !m.brand_id : m.brand_id === brandFilter)
     return matchCat && matchBrand
   })
 
@@ -214,7 +220,12 @@ export default function AdminMediaPage() {
             onClick={() => setBrandFilter('all')}
             className={cn('px-3 py-1.5 rounded-full text-sm font-medium border transition-colors',
               brandFilter === 'all' ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground')}
-          >Todas as marcas</button>
+          >Todos</button>
+          <button
+            onClick={() => setBrandFilter('todas')}
+            className={cn('px-3 py-1.5 rounded-full text-sm font-medium border transition-colors',
+              brandFilter === 'todas' ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground')}
+          >📋 Todas as marcas</button>
           {brands.map((b) => (
             <button
               key={b.id}
@@ -288,7 +299,7 @@ export default function AdminMediaPage() {
                       {CATEGORY_LABELS[item.category]}
                     </Badge>
                     <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                      {(item.brands as any)?.name}
+                      {item.brand_id ? (item.brands as any)?.name : 'Todas as marcas'}
                     </Badge>
                   </div>
                   <button onClick={() => handleDelete(item)}
@@ -355,17 +366,6 @@ export default function AdminMediaPage() {
               )}
             </div>
 
-            {/* Brand */}
-            <div className="space-y-1.5">
-              <Label>Marca *</Label>
-              <Select value={uploadBrandId} onValueChange={setUploadBrandId}>
-                <SelectTrigger><SelectValue placeholder="Selecionar marca" /></SelectTrigger>
-                <SelectContent>
-                  {brands.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* Category */}
             <div className="space-y-1.5">
               <Label>Categoria *</Label>
@@ -379,6 +379,24 @@ export default function AdminMediaPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Brand — oculto para cardápio (aparece para todas as marcas automaticamente) */}
+            {isAllBrands ? (
+              <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-500/10 px-3 py-2.5 text-sm text-blue-700">
+                <span className="text-base leading-none mt-0.5">📋</span>
+                <span>Cardápios ficam visíveis para <strong>todas as marcas</strong> automaticamente.</span>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <Label>Marca *</Label>
+                <Select value={uploadBrandId} onValueChange={setUploadBrandId}>
+                  <SelectTrigger><SelectValue placeholder="Selecionar marca" /></SelectTrigger>
+                  <SelectContent>
+                    {brands.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Title */}
             <div className="space-y-1.5">
