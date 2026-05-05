@@ -47,15 +47,15 @@ export default async function AdminDashboard() {
       .limit(5),
   ])
 
-  // Count positivations by status
+  // Count positivations by status (valores reais do banco)
   const statusCounts: Record<string, number> = {
     positivado: 0,
     em_negociacao: 0,
-    recusado: 0,
-    retorno_pendente: 0,
+    perdido: 0,
+    inativo: 0,
   }
   positivationsByStatus?.forEach((p: { status: string }) => {
-    statusCounts[p.status] = (statusCounts[p.status] || 0) + 1
+    if (p.status in statusCounts) statusCounts[p.status]++
   })
 
   return (

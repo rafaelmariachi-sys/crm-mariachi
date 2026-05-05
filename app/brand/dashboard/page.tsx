@@ -33,9 +33,11 @@ export default async function BrandDashboard({ searchParams }: { searchParams: {
     { data: allPositivations },
     { data: openFollowups },
   ] = await Promise.all([
-    supabase.from('positivations').select('visits(visited_at, venue_id)').in('brand_id', brandIds),
+    // Apenas positivações confirmadas contam como visita ao bar
+    supabase.from('positivations').select('visits(visited_at, venue_id)').in('brand_id', brandIds).eq('status', 'positivado'),
     supabase.from('followups').select('visits(visited_at, venue_id)').or(brandOr),
-    supabase.from('positivations').select('status').in('brand_id', brandIds),
+    // Apenas positivações confirmadas no contador do dashboard
+    supabase.from('positivations').select('status').in('brand_id', brandIds).eq('status', 'positivado'),
     supabase.from('followups').select('id, content, due_date, status, visits(venues(name))').or(brandOr).eq('status', 'aberto').order('due_date', { ascending: true }).limit(5),
   ])
 
@@ -66,7 +68,7 @@ export default async function BrandDashboard({ searchParams }: { searchParams: {
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <StatsCard title="Visitas este mês" value={venueIdsThisMonth.size} icon={CalendarCheck} />
-        <StatsCard title="Positivações totais" value={allPositivations?.length ?? 0} icon={CheckCircle} />
+        <StatsCard title="Positivados" value={allPositivations?.length ?? 0} icon={CheckCircle} iconClassName="bg-emerald-500/10" />
         <StatsCard title="Follow-ups abertos" value={openFollowups?.length ?? 0} icon={Clock} iconClassName="bg-amber-500/10" />
       </div>
 
