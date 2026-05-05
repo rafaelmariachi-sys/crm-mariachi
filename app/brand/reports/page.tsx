@@ -6,6 +6,7 @@ import { MapPin, TrendingUp } from 'lucide-react'
 import { POSITIVATION_STATUS_LABELS, PositivationStatus } from '@/lib/types'
 import { BrandCharts } from './charts'
 import { BrandTabs } from '@/components/brand/brand-tabs'
+import { Suspense } from 'react'
 
 export const dynamic = 'force-dynamic'
 
@@ -90,7 +91,7 @@ export default async function BrandReportsPage({ searchParams }: { searchParams:
         <p className="text-muted-foreground text-sm">Visão analítica</p>
       </div>
 
-      <BrandTabs brands={allBrands} />
+      <Suspense><BrandTabs brands={allBrands} /></Suspense>
 
       <div className="grid grid-cols-2 gap-4">
         <StatsCard title="Casas visitadas este mês" value={uniqueVenues} icon={MapPin} />

@@ -5,6 +5,7 @@ import { formatDate, getDueDateLabel } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { MessageSquare } from 'lucide-react'
 import { BrandTabs } from '@/components/brand/brand-tabs'
+import { Suspense } from 'react'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,7 +35,7 @@ export default async function BrandFollowupsPage({ searchParams }: { searchParam
         <p className="text-muted-foreground text-sm">{followups?.length ?? 0} registros</p>
       </div>
 
-      <BrandTabs brands={allBrands} />
+      <Suspense><BrandTabs brands={allBrands} /></Suspense>
 
       {!followups || followups.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">

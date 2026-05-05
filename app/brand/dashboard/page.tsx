@@ -7,6 +7,7 @@ import { POSITIVATION_STATUS_LABELS, POSITIVATION_STATUS_COLORS, PositivationSta
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import { BrandTabs } from '@/components/brand/brand-tabs'
+import { Suspense } from 'react'
 
 export const dynamic = 'force-dynamic'
 
@@ -65,7 +66,7 @@ export default async function BrandDashboard({ searchParams }: { searchParams: {
         <p className="text-muted-foreground text-sm">Dashboard — visão geral</p>
       </div>
 
-      <BrandTabs brands={allBrands} />
+      <Suspense><BrandTabs brands={allBrands} /></Suspense>
 
       {/* Linha 1: visitas + follow-ups */}
       <div className="grid grid-cols-2 gap-3">

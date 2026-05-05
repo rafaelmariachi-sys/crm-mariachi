@@ -6,6 +6,7 @@ import { POSITIVATION_STATUS_LABELS, POSITIVATION_STATUS_COLORS, FOLLOWUP_STATUS
 import { cn } from '@/lib/utils'
 import { CalendarCheck, MapPin } from 'lucide-react'
 import { BrandTabs } from '@/components/brand/brand-tabs'
+import { Suspense } from 'react'
 
 export const dynamic = 'force-dynamic'
 
@@ -57,7 +58,7 @@ export default async function BrandVisitsPage({ searchParams }: { searchParams: 
         <p className="text-muted-foreground text-sm">{visits.length} visitas</p>
       </div>
 
-      <BrandTabs brands={allBrands} />
+      <Suspense><BrandTabs brands={allBrands} /></Suspense>
 
       {visits.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
