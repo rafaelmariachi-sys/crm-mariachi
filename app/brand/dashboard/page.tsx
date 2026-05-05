@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { StatsCard } from '@/components/stats-card'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getCurrentMonthRange, getDueDateLabel } from '@/lib/utils'
-import { CalendarCheck, CheckCircle, Clock, AlertCircle } from 'lucide-react'
+import { CalendarCheck, CheckCircle, Clock, AlertCircle, TrendingUp, XCircle } from 'lucide-react'
 import { POSITIVATION_STATUS_LABELS, POSITIVATION_STATUS_COLORS, PositivationStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
@@ -28,7 +28,7 @@ export default async function BrandDashboard({ searchParams }: { searchParams: {
   const brandOr = `brand_id.in.(${brandIds.join(',')}),brand_id.is.null`
 
   const [
-    { data: allPosWithVisit },
+    { data: posVisit },
     { data: allFollowupsWithVisit },
     { data: allPositivations },
     { data: openFollowups },
@@ -36,15 +36,15 @@ export default async function BrandDashboard({ searchParams }: { searchParams: {
     // Apenas positivações confirmadas contam como visita ao bar
     supabase.from('positivations').select('visits(visited_at, venue_id)').in('brand_id', brandIds).eq('status', 'positivado'),
     supabase.from('followups').select('visits(visited_at, venue_id)').or(brandOr),
-    // Apenas positivações confirmadas no contador do dashboard
-    supabase.from('positivations').select('status').in('brand_id', brandIds).eq('status', 'positivado'),
+    // Todas as positivações para quebrar por status
+    supabase.from('positivations').select('status').in('brand_id', brandIds),
     supabase.from('followups').select('id, content, due_date, status, visits(venues(name))').or(brandOr).eq('status', 'aberto').order('due_date', { ascending: true }).limit(5),
   ])
 
   const inRange = (dateStr: string) => dateStr >= start && dateStr <= end
 
   const venueIdsThisMonth = new Set([
-    ...(allPosWithVisit || [])
+    ...(posVisit || [])
       .filter((p: any) => p.visits?.visited_at && inRange(p.visits.visited_at) && p.visits?.venue_id)
       .map((p: any) => p.visits.venue_id),
     ...(allFollowupsWithVisit || [])
@@ -52,9 +52,10 @@ export default async function BrandDashboard({ searchParams }: { searchParams: {
       .map((f: any) => f.visits.venue_id),
   ])
 
-  const statusCounts: Record<string, number> = {}
+  // Contagem por status
+  const statusCounts: Record<string, number> = { positivado: 0, em_negociacao: 0, perdido: 0, inativo: 0 }
   ;(allPositivations || []).forEach((p: any) => {
-    statusCounts[p.status] = (statusCounts[p.status] || 0) + 1
+    if (p.status in statusCounts) statusCounts[p.status]++
   })
 
   return (
@@ -66,10 +67,17 @@ export default async function BrandDashboard({ searchParams }: { searchParams: {
 
       <BrandTabs brands={allBrands} />
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Linha 1: visitas + follow-ups */}
+      <div className="grid grid-cols-2 gap-3">
         <StatsCard title="Visitas este mês" value={venueIdsThisMonth.size} icon={CalendarCheck} />
-        <StatsCard title="Positivados" value={allPositivations?.length ?? 0} icon={CheckCircle} iconClassName="bg-emerald-500/10" />
         <StatsCard title="Follow-ups abertos" value={openFollowups?.length ?? 0} icon={Clock} iconClassName="bg-amber-500/10" />
+      </div>
+
+      {/* Linha 2: positivações por status */}
+      <div className="grid grid-cols-3 gap-3">
+        <StatsCard title="Positivados" value={statusCounts.positivado} icon={CheckCircle} iconClassName="bg-emerald-500/10" />
+        <StatsCard title="Em negociação" value={statusCounts.em_negociacao} icon={TrendingUp} iconClassName="bg-amber-500/10" />
+        <StatsCard title="Perdidos" value={statusCounts.perdido + statusCounts.inativo} icon={XCircle} iconClassName="bg-red-500/10" />
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
@@ -109,7 +117,7 @@ export default async function BrandDashboard({ searchParams }: { searchParams: {
               {(Object.keys(POSITIVATION_STATUS_LABELS) as PositivationStatus[]).map((status) => (
                 <div key={status} className={cn('flex items-center justify-between p-2.5 rounded-lg border', POSITIVATION_STATUS_COLORS[status])}>
                   <span className="text-xs font-medium">{POSITIVATION_STATUS_LABELS[status]}</span>
-                  <span className="text-lg font-bold">{statusCounts[status] ?? 0}</span>
+                  <span className="text-lg font-bold">{statusCounts[status as keyof typeof statusCounts] ?? 0}</span>
                 </div>
               ))}
             </div>
