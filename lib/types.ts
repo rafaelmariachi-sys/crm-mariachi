@@ -33,20 +33,20 @@ export type Visit = {
   venues?: Venue
 }
 
-export type PositivationStatus = 'positivado' | 'em_negociacao' | 'recusado' | 'retorno_pendente'
+export type PositivationStatus = 'positivado' | 'em_negociacao' | 'perdido' | 'inativo'
 
 export const POSITIVATION_STATUS_LABELS: Record<PositivationStatus, string> = {
   positivado: 'Positivado',
   em_negociacao: 'Em Negociação',
-  recusado: 'Recusado',
-  retorno_pendente: 'Retorno Pendente',
+  perdido: 'Perdido',
+  inativo: 'Inativo',
 }
 
 export const POSITIVATION_STATUS_COLORS: Record<PositivationStatus, string> = {
   positivado: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   em_negociacao: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-  recusado: 'bg-red-500/20 text-red-400 border-red-500/30',
-  retorno_pendente: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  perdido: 'bg-red-500/20 text-red-400 border-red-500/30',
+  inativo: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
 }
 
 export type Positivation = {
