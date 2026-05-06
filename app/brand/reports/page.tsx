@@ -6,6 +6,7 @@ import { MapPin, TrendingUp } from 'lucide-react'
 import { POSITIVATION_STATUS_LABELS, PositivationStatus } from '@/lib/types'
 import { BrandCharts } from './charts'
 import { BrandTabs } from '@/components/brand/brand-tabs'
+import { DownloadReportButton } from '@/components/brand/download-report-button'
 import { Suspense } from 'react'
 
 export const dynamic = 'force-dynamic'
@@ -20,6 +21,9 @@ export default async function BrandReportsPage({ searchParams }: { searchParams:
   const allBrands = (brandUsers || []).map((bu: any) => ({ id: bu.brands.id, name: bu.brands.name }))
   const selectedBrand = searchParams.brand
   const brandIds = selectedBrand ? [selectedBrand] : allBrands.map((b) => b.id)
+  const brandName = selectedBrand
+    ? allBrands.find((b) => b.id === selectedBrand)?.name ?? 'Marca'
+    : allBrands.map((b) => b.name).join(' & ')
 
   const { data: positivations } = await supabase
     .from('positivations')
@@ -86,9 +90,12 @@ export default async function BrandReportsPage({ searchParams }: { searchParams:
 
   return (
     <div className="p-4 sm:p-6 space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold">Relatórios</h1>
-        <p className="text-muted-foreground text-sm">Visão analítica</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Relatórios</h1>
+          <p className="text-muted-foreground text-sm">Visão analítica</p>
+        </div>
+        <DownloadReportButton brandIds={brandIds} brandName={brandName} />
       </div>
 
       <Suspense><BrandTabs brands={allBrands} /></Suspense>
