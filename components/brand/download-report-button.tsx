@@ -45,20 +45,12 @@ export function DownloadReportButton({ brandIds, brandName }: Props) {
 
       // ── FETCH DATA ────────────────────────────────────────────────
 
-      const [
-        { data: allVisits },
-        { data: allPositivations },
-        { data: followups },
-      ] = await Promise.all([
+      // Visitas: via API route com service role (bypassa RLS — retorna TODAS as visitas)
+      const visitsRes = await fetch(`/api/brand/visits?start=${start}&end=${end}`)
+      const visitsJson = await visitsRes.json()
+      const allVisits: any[] = visitsJson.visits || []
 
-        // TODAS as visitas do mês — independente de marca
-        supabase
-          .from('visits')
-          .select('id, visited_at, notes, venues(name, neighborhood, city, type)')
-          .gte('visited_at', start + 'T00:00:00')
-          .lte('visited_at', end + 'T23:59:59')
-          .order('visited_at', { ascending: false }),
-
+      const [{ data: allPositivations }, { data: followups }] = await Promise.all([
         // Positivações da marca (todas — para status atual + filtro do mês)
         supabase
           .from('positivations')
@@ -119,7 +111,7 @@ export function DownloadReportButton({ brandIds, brandName }: Props) {
       y += 4
 
       const cards = [
-        { label: 'Visitas no mês', value: (allVisits || []).length },
+        { label: 'Visitas no mês', value: allVisits.length },
         { label: 'Positivações no mês', value: monthPositivations.length },
         { label: 'Positivados (total)', value: statusCounts.positivado },
         { label: 'Em Negociação', value: statusCounts.em_negociacao },
@@ -183,9 +175,9 @@ export function DownloadReportButton({ brandIds, brandName }: Props) {
         ...tbl,
         startY: y,
         head: [['Data', 'Casa', 'Tipo', 'Bairro · Cidade', 'Observações']],
-        body: (allVisits || []).length === 0
+        body: allVisits.length === 0
           ? noData('Nenhuma visita registrada no período')
-          : (allVisits || []).map((v: any) => [
+          : allVisits.map((v: any) => [
               format(new Date(v.visited_at), 'dd/MM/yyyy', { locale: ptBR }),
               v.venues?.name || '—',
               v.venues?.type || '—',
