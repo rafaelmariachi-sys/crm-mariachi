@@ -47,8 +47,12 @@ export function DownloadReportButton({ brandIds, brandName }: Props) {
 
       // Visitas: via API route com service role (bypassa RLS — retorna TODAS as visitas)
       const visitsRes = await fetch(`/api/brand/visits?start=${start}&end=${end}`)
+      if (!visitsRes.ok) {
+        const errData = await visitsRes.json().catch(() => ({}))
+        throw new Error(`Erro ao buscar visitas: ${visitsRes.status}${errData.error ? ' — ' + errData.error : ''}`)
+      }
       const visitsJson = await visitsRes.json()
-      const allVisits: any[] = visitsJson.visits || []
+      const allVisits: any[] = visitsJson.visits ?? []
 
       const [{ data: allPositivations }, { data: followups }] = await Promise.all([
         // Positivações da marca (todas — para status atual + filtro do mês)
