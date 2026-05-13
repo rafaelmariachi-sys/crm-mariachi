@@ -145,13 +145,14 @@ export default function VenuesPage() {
   }
 
   const filtered = venues.filter((v) => {
+    const q = search.toLowerCase()
     const matchSearch =
-      v.name.toLowerCase().includes(search.toLowerCase()) ||
-      v.city.toLowerCase().includes(search.toLowerCase()) ||
-      v.neighborhood.toLowerCase().includes(search.toLowerCase()) ||
-      (v.contact_name || '').toLowerCase().includes(search.toLowerCase()) ||
+      (v.name || '').toLowerCase().includes(q) ||
+      (v.city || '').toLowerCase().includes(q) ||
+      (v.neighborhood || '').toLowerCase().includes(q) ||
+      (v.contact_name || '').toLowerCase().includes(q) ||
       (v.cnpj || '').includes(search) ||
-      (v.razao_social || '').toLowerCase().includes(search.toLowerCase())
+      (v.razao_social || '').toLowerCase().includes(q)
     const matchType = filterType === 'all' || v.type === filterType
     return matchSearch && matchType
   })
