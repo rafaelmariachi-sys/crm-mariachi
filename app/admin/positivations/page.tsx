@@ -3,7 +3,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { POSITIVATION_STATUS_LABELS, POSITIVATION_STATUS_COLORS, PositivationStatus } from '@/lib/types'
-import { MapPin, Plus, Package } from 'lucide-react'
+import { MapPin, Plus, Package, AlertTriangle } from 'lucide-react'
+import { DeletePositivationButton } from '@/components/admin/delete-positivation-button'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -60,6 +61,22 @@ export default async function PositivationsPage({
     return format(new Date(d.includes('T') ? d : d + 'T12:00:00'), 'dd/MM/yy', { locale: ptBR })
   }
 
+  // ── Detecção de duplicatas ───────────────────────────────────────────
+  // Chave: brand_id + venue_id + product_name normalizado
+  const keyCount = new Map<string, number>()
+  ;(positivations || []).forEach((p: any) => {
+    const venue = p.venues || p.visits?.venues
+    const venueKey = venue?.id || `visit-${p.visit_id}` || 'sem-venue'
+    const key = `${p.brand_id}__${venueKey}__${(p.product_name || '').toLowerCase().trim()}`
+    keyCount.set(key, (keyCount.get(key) || 0) + 1)
+  })
+  function isDuplicate(p: any): boolean {
+    const venue = p.venues || p.visits?.venues
+    const venueKey = venue?.id || `visit-${p.visit_id}` || 'sem-venue'
+    const key = `${p.brand_id}__${venueKey}__${(p.product_name || '').toLowerCase().trim()}`
+    return (keyCount.get(key) || 0) > 1
+  }
+
   // ── VIEW: Por casa ──────────────────────────────────────────────────
   const venueMap = new Map<string, { venue: any; items: any[] }>()
   ;(positivations || []).forEach((p: any) => {
@@ -83,7 +100,7 @@ export default async function PositivationsPage({
       productName: string
       brand: string
       statusSummary: Record<string, number>
-      venues: { venue: any; status: string; notes: string | null; dateStr: string }[]
+      venues: { id: string; venue: any; status: string; notes: string | null; dateStr: string }[]
     }
   >()
   ;(positivations || []).forEach((p: any) => {
@@ -100,6 +117,7 @@ export default async function PositivationsPage({
     const entry = productMap.get(key)!
     entry.statusSummary[p.status] = (entry.statusSummary[p.status] || 0) + 1
     entry.venues.push({
+      id: p.id,
       venue: venue ? { ...venue } : { name: p.visit_id ? '(via visita)' : 'Sem estabelecimento' },
       status: p.status,
       notes: p.notes,
@@ -169,13 +187,21 @@ export default async function PositivationsPage({
 
                   <div className="space-y-2">
                     {items.map((p: any) => (
-                      <div key={p.id} className="flex items-center gap-3 py-1">
+                      <div key={p.id} className={cn(
+                        'flex items-center gap-3 py-1 px-2 rounded-md',
+                        isDuplicate(p) && 'bg-amber-500/5 border border-amber-500/20'
+                      )}>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm font-medium">{p.product_name || '—'}</span>
                             {p.brands?.name && (
                               <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                                 {p.brands.name}
+                              </span>
+                            )}
+                            {isDuplicate(p) && (
+                              <span className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                                <AlertTriangle className="h-3 w-3" /> duplicata
                               </span>
                             )}
                           </div>
@@ -186,6 +212,7 @@ export default async function PositivationsPage({
                             {POSITIVATION_STATUS_LABELS[p.status as PositivationStatus] || p.status}
                           </Badge>
                           <span className="text-xs text-muted-foreground whitespace-nowrap">{getDateStr(p)}</span>
+                          <DeletePositivationButton id={p.id} />
                         </div>
                       </div>
                     ))}
@@ -257,6 +284,7 @@ export default async function PositivationsPage({
                               {POSITIVATION_STATUS_LABELS[entry.status as PositivationStatus] || entry.status}
                             </Badge>
                             <span className="text-xs text-muted-foreground">{entry.dateStr}</span>
+                            <DeletePositivationButton id={entry.id} />
                           </div>
                         </div>
                       ))}
