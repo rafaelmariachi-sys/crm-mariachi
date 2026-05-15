@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { formatDate } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { POSITIVATION_STATUS_LABELS, POSITIVATION_STATUS_COLORS, FOLLOWUP_STATUS_LABELS } from '@/lib/types'
+import { POSITIVATION_STATUS_LABELS, POSITIVATION_STATUS_COLORS, FOLLOWUP_STATUS_LABELS, PositivationStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { CalendarCheck, MapPin } from 'lucide-react'
 import { BrandTabs } from '@/components/brand/brand-tabs'
@@ -93,8 +93,8 @@ export default async function BrandVisitsPage({ searchParams }: { searchParams: 
                             <p className="text-sm font-medium">{p.product_name}</p>
                             {p.notes && <p className="text-xs text-muted-foreground">{p.notes}</p>}
                           </div>
-                          <span className={cn('text-xs px-2 py-1 rounded-full border whitespace-nowrap', POSITIVATION_STATUS_COLORS[p.status])}>
-                            {POSITIVATION_STATUS_LABELS[p.status]}
+                          <span className={cn('text-xs px-2 py-1 rounded-full border whitespace-nowrap', POSITIVATION_STATUS_COLORS[p.status as PositivationStatus])}>
+                            {POSITIVATION_STATUS_LABELS[p.status as PositivationStatus]}
                           </span>
                         </div>
                       ))}

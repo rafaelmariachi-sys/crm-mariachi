@@ -148,7 +148,7 @@ export function DownloadReportButton({ brandIds, brandName }: Props) {
       y += Math.ceil(cards.length / cols) * (cardH + 3) + 8
 
       // ── helpers ──────────────────────────────────────────────────
-      function section(title: string) {
+      const section = (title: string) => {
         if (y > 245) { doc.addPage(); y = 16 }
         doc.setFont('helvetica', 'bold')
         doc.setFontSize(9.5)

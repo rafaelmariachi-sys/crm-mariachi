@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Card, CardContent } from '@/components/ui/card'
 import { useToast } from '@/components/ui/use-toast'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus, Package, Loader2, UserPlus, Pencil, Trash2, GripVertical } from 'lucide-react'
+import { Plus, Package, Loader2, UserPlus, Trash2, GripVertical } from 'lucide-react'
 import { Brand } from '@/lib/types'
 
 type Sku = { id: string; name: string; active: boolean; display_order: number }
