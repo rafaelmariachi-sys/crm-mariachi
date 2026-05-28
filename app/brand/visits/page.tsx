@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { formatDate } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -12,44 +13,60 @@ export const dynamic = 'force-dynamic'
 
 export default async function BrandVisitsPage({ searchParams }: { searchParams: { brand?: string } }) {
   const supabase = createClient()
+  const admin = createAdminClient()
 
   const { data: { user } } = await supabase.auth.getUser()
-  const { data: brandUsers } = await supabase.from('brand_users').select('brand_id, brands(id, name)').eq('user_id', user!.id)
+  const { data: brandUsers } = await supabase
+    .from('brand_users')
+    .select('brand_id, brands(id, name)')
+    .eq('user_id', user!.id)
 
   const allBrands = (brandUsers || []).map((bu: any) => ({ id: bu.brands.id, name: bu.brands.name }))
   const selectedBrand = searchParams.brand
   const brandIds = selectedBrand ? [selectedBrand] : allBrands.map((b) => b.id)
 
+  // Busca TODAS as visitas (admin bypassa RLS)
+  const { data: allVisits } = await admin
+    .from('visits')
+    .select('id, visited_at, notes, venues(id, name, address, neighborhood, city, type)')
+    .order('visited_at', { ascending: false })
+
+  // Positivações da marca com visit_id
   const { data: positivations } = await supabase
     .from('positivations')
-    .select('id, product_name, status, notes, visits(id, visited_at, notes, venues(name, address, neighborhood, city, type))')
+    .select('id, product_name, status, notes, visit_id')
     .in('brand_id', brandIds)
-    .order('created_at', { ascending: false })
+    .not('visit_id', 'is', null)
 
+  // Follow-ups da marca com visit_id
   const { data: followups } = await supabase
     .from('followups')
-    .select('visit_id, content, due_date, status, visits(id, visited_at, notes, venues(name, address, neighborhood, city, type))')
+    .select('id, visit_id, content, due_date, status')
     .or(`brand_id.in.(${brandIds.join(',')}),brand_id.is.null`)
+    .not('visit_id', 'is', null)
 
+  // Constrói mapa partindo de TODAS as visitas
   const visitMap = new Map<string, { visit: any; positivations: any[]; followups: any[] }>()
 
-  positivations?.forEach((p: any) => {
-    if (!p.visits) return
-    const visitId = p.visits.id
-    if (!visitMap.has(visitId)) visitMap.set(visitId, { visit: p.visits, positivations: [], followups: [] })
-    visitMap.get(visitId)!.positivations.push(p)
+  ;(allVisits || []).forEach((v: any) => {
+    visitMap.set(v.id, { visit: v, positivations: [], followups: [] })
   })
 
-  followups?.forEach((f: any) => {
-    if (!f.visits) return
-    const visitId = f.visits.id
-    if (!visitMap.has(visitId)) visitMap.set(visitId, { visit: f.visits, positivations: [], followups: [] })
-    visitMap.get(visitId)!.followups.push(f)
+  // Sobrepõe positivações da marca
+  ;(positivations || []).forEach((p: any) => {
+    if (p.visit_id && visitMap.has(p.visit_id)) {
+      visitMap.get(p.visit_id)!.positivations.push(p)
+    }
   })
 
-  const visits = Array.from(visitMap.values()).sort(
-    (a, b) => new Date(b.visit.visited_at).getTime() - new Date(a.visit.visited_at).getTime()
-  )
+  // Sobrepõe follow-ups da marca
+  ;(followups || []).forEach((f: any) => {
+    if (f.visit_id && visitMap.has(f.visit_id)) {
+      visitMap.get(f.visit_id)!.followups.push(f)
+    }
+  })
+
+  const visits = Array.from(visitMap.values())
 
   return (
     <div className="p-4 sm:p-6 space-y-5">
@@ -70,19 +87,31 @@ export default async function BrandVisitsPage({ searchParams }: { searchParams: 
           {visits.map(({ visit, positivations: pos, followups: fols }) => (
             <Card key={visit.id}>
               <CardContent className="p-5 space-y-4">
+                {/* Header */}
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-semibold">{visit.venues?.name}</p>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                      <MapPin className="h-3 w-3" />{visit.venues?.neighborhood} · {visit.venues?.city}
-                    </p>
+                    {(visit.venues?.neighborhood || visit.venues?.city) && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                        <MapPin className="h-3 w-3" />
+                        {[visit.venues?.neighborhood, visit.venues?.city].filter(Boolean).join(' · ')}
+                      </p>
+                    )}
                   </div>
-                  <div className="text-right">
+                  <div className="text-right shrink-0">
                     <p className="text-sm font-medium">{formatDate(visit.visited_at)}</p>
-                    <Badge variant="outline" className="text-xs mt-1">{visit.venues?.type}</Badge>
+                    {visit.venues?.type && (
+                      <Badge variant="outline" className="text-xs mt-1">{visit.venues.type}</Badge>
+                    )}
                   </div>
                 </div>
-                {visit.notes && <p className="text-sm text-muted-foreground border-l-2 border-border pl-3">{visit.notes}</p>}
+
+                {/* Observações da visita */}
+                {visit.notes && (
+                  <p className="text-sm text-muted-foreground border-l-2 border-border pl-3">{visit.notes}</p>
+                )}
+
+                {/* Positivações da marca nesta visita */}
                 {pos.length > 0 && (
                   <div>
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Positivações</p>
@@ -93,7 +122,10 @@ export default async function BrandVisitsPage({ searchParams }: { searchParams: 
                             <p className="text-sm font-medium">{p.product_name}</p>
                             {p.notes && <p className="text-xs text-muted-foreground">{p.notes}</p>}
                           </div>
-                          <span className={cn('text-xs px-2 py-1 rounded-full border whitespace-nowrap', POSITIVATION_STATUS_COLORS[p.status as PositivationStatus])}>
+                          <span className={cn(
+                            'text-xs px-2 py-1 rounded-full border whitespace-nowrap',
+                            POSITIVATION_STATUS_COLORS[p.status as PositivationStatus]
+                          )}>
                             {POSITIVATION_STATUS_LABELS[p.status as PositivationStatus]}
                           </span>
                         </div>
@@ -101,17 +133,23 @@ export default async function BrandVisitsPage({ searchParams }: { searchParams: 
                     </div>
                   </div>
                 )}
+
+                {/* Follow-ups da marca nesta visita */}
                 {fols.length > 0 && (
                   <div>
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Follow-ups</p>
                     <div className="space-y-2">
-                      {fols.map((f: any, i: number) => (
-                        <div key={i} className="flex items-start justify-between gap-3 p-2.5 rounded-lg bg-muted/40">
+                      {fols.map((f: any) => (
+                        <div key={f.id} className="flex items-start justify-between gap-3 p-2.5 rounded-lg bg-muted/40">
                           <div className="flex-1">
                             <p className="text-sm">{f.content}</p>
-                            {f.due_date && <p className="text-xs text-muted-foreground mt-0.5">Retorno: {formatDate(f.due_date)}</p>}
+                            {f.due_date && (
+                              <p className="text-xs text-muted-foreground mt-0.5">Retorno: {formatDate(f.due_date)}</p>
+                            )}
                           </div>
-                          <Badge variant="outline" className="text-xs whitespace-nowrap">{FOLLOWUP_STATUS_LABELS[f.status as keyof typeof FOLLOWUP_STATUS_LABELS]}</Badge>
+                          <Badge variant="outline" className="text-xs whitespace-nowrap">
+                            {FOLLOWUP_STATUS_LABELS[f.status as keyof typeof FOLLOWUP_STATUS_LABELS]}
+                          </Badge>
                         </div>
                       ))}
                     </div>
