@@ -30,17 +30,24 @@ export default async function BrandDashboard({ searchParams }: { searchParams: {
 
   const brandOr = `brand_id.in.(${brandIds.join(',')}),brand_id.is.null`
 
+  // Conta TODAS as visitas do mês via admin (bypassa RLS)
+  let visitsThisMonth = 0
+  try {
+    const { count, error } = await admin
+      .from('visits')
+      .select('id', { count: 'exact', head: true })
+      .gte('visited_at', start)
+      .lte('visited_at', end)
+    if (error) console.error('[brand/dashboard] visits count error:', error.message)
+    else visitsThisMonth = count ?? 0
+  } catch (e) {
+    console.error('[brand/dashboard] admin client falhou:', e)
+  }
+
   const [
-    { count: visitsThisMonth },
     { data: allPositivations },
     { data: openFollowups },
   ] = await Promise.all([
-    // TODAS as visitas do mês — admin bypassa RLS
-    admin
-      .from('visits')
-      .select('*', { count: 'exact', head: true })
-      .gte('visited_at', start)
-      .lte('visited_at', end + 'T23:59:59'),
     // Todas as positivações da marca para quebrar por status
     supabase.from('positivations').select('status').in('brand_id', brandIds),
     // Follow-ups abertos da marca

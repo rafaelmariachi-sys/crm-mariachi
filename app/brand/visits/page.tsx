@@ -26,10 +26,17 @@ export default async function BrandVisitsPage({ searchParams }: { searchParams: 
   const brandIds = selectedBrand ? [selectedBrand] : allBrands.map((b) => b.id)
 
   // Busca TODAS as visitas (admin bypassa RLS)
-  const { data: allVisits } = await admin
-    .from('visits')
-    .select('id, visited_at, notes, venues(id, name, address, neighborhood, city, type)')
-    .order('visited_at', { ascending: false })
+  let allVisits: any[] = []
+  try {
+    const { data, error } = await admin
+      .from('visits')
+      .select('id, visited_at, notes, venues(id, name, address, neighborhood, city, type)')
+      .order('visited_at', { ascending: false })
+    if (error) console.error('[brand/visits] visits fetch error:', error.message)
+    else allVisits = data ?? []
+  } catch (e) {
+    console.error('[brand/visits] admin client falhou:', e)
+  }
 
   // Positivações da marca com visit_id
   const { data: positivations } = await supabase
