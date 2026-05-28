@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/use-toast'
@@ -48,7 +47,6 @@ function pillCn(active: boolean) {
 }
 
 export default function BrandMediaPage() {
-  const supabase = createClient()
   const { toast } = useToast()
 
   const [media, setMedia] = useState<MediaItem[]>([])
@@ -62,32 +60,23 @@ export default function BrandMediaPage() {
   useEffect(() => {
     async function load() {
       setLoading(true)
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      try {
+        // API route usa admin client — bypassa RLS do DB e do storage,
+        // garantindo que cardápios (brand_id = null) apareçam para todos
+        const res = await fetch('/api/brand/media')
+        if (!res.ok) throw new Error('Erro ao carregar mídia')
+        const json = await res.json()
+        const items: MediaItem[] = json.media ?? []
+        setMedia(items)
 
-      const { data: brandUsers } = await supabase
-        .from('brand_users').select('brand_id, brands(id, name)').eq('user_id', user.id)
-
-      const allBrands = (brandUsers || []).map((bu: any) => ({ id: bu.brands.id, name: bu.brands.name }))
-      setBrands(allBrands)
-
-      const brandIds = allBrands.map((b: any) => b.id)
-      if (brandIds.length === 0) { setLoading(false); return }
-
-      const { data } = await supabase
-        .from('brand_media')
-        .select('*, brands(name), venues(id, name, neighborhood)')
-        .or(`brand_id.in.(${brandIds.join(',')}),brand_id.is.null`)
-        .order('created_at', { ascending: false })
-
-      if (data) {
-        const withUrls = await Promise.all(
-          data.map(async (item: any) => {
-            const { data: u } = await supabase.storage.from('brand-media').createSignedUrl(item.storage_path, 3600)
-            return { ...item, signedUrl: u?.signedUrl }
-          })
-        )
-        setMedia(withUrls)
+        // Extrai lista de marcas para o lightbox
+        const brandMap = new Map<string, { id: string; name: string }>()
+        items.forEach((item: any) => {
+          if (item.brand_id && item.brands) brandMap.set(item.brand_id, { id: item.brand_id, name: item.brands.name })
+        })
+        setBrands(Array.from(brandMap.values()))
+      } catch (e) {
+        console.error('[brand/media] erro ao carregar:', e)
       }
       setLoading(false)
     }
@@ -97,10 +86,12 @@ export default function BrandMediaPage() {
   async function handleDownload(item: MediaItem) {
     setDownloading(item.id)
     try {
-      const { data } = await supabase.storage.from('brand-media').createSignedUrl(item.storage_path, 60)
-      if (data?.signedUrl) {
-        const a = document.createElement('a'); a.href = data.signedUrl; a.download = item.file_name; a.click()
+      const url = item.signedUrl
+      if (url) {
+        const a = document.createElement('a'); a.href = url; a.download = item.file_name; a.click()
         toast({ title: 'Download iniciado!' })
+      } else {
+        toast({ title: 'URL expirada, recarregue a página', variant: 'destructive' })
       }
     } catch { toast({ title: 'Erro ao baixar arquivo', variant: 'destructive' }) }
     setDownloading(null)
