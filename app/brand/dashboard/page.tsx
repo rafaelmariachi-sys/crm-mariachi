@@ -32,16 +32,22 @@ export default async function BrandDashboard({ searchParams }: { searchParams: {
 
   // Conta TODAS as visitas do mês via admin (bypassa RLS)
   let visitsThisMonth = 0
+  let adminClientFailed = false
   try {
     const { count, error } = await admin
       .from('visits')
       .select('id', { count: 'exact', head: true })
-      .gte('visited_at', start)
-      .lte('visited_at', end)
-    if (error) console.error('[brand/dashboard] visits count error:', error.message)
-    else visitsThisMonth = count ?? 0
+      .gte('visited_at', start + 'T00:00:00')
+      .lte('visited_at', end + 'T23:59:59')
+    if (error) {
+      console.error('[brand/dashboard] visits count error:', error.message)
+      adminClientFailed = true
+    } else {
+      visitsThisMonth = count ?? 0
+    }
   } catch (e) {
     console.error('[brand/dashboard] admin client falhou:', e)
+    adminClientFailed = true
   }
 
   const [
@@ -74,6 +80,14 @@ export default async function BrandDashboard({ searchParams }: { searchParams: {
       </div>
 
       <Suspense><BrandTabs brands={allBrands} /></Suspense>
+
+      {adminClientFailed && (
+        <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm text-amber-600 dark:text-amber-400">
+          ⚠️ Não foi possível carregar todas as visitas — a chave de serviço (SUPABASE_SERVICE_ROLE_KEY) pode estar
+          incorreta no Vercel. Verifique se o valor corresponde exatamente à <strong>service role key</strong> do projeto
+          Supabase (não à anon key).
+        </div>
+      )}
 
       {/* Linha 1: visitas + follow-ups */}
       <div className="grid grid-cols-2 gap-3">

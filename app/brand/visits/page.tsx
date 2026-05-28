@@ -27,15 +27,21 @@ export default async function BrandVisitsPage({ searchParams }: { searchParams: 
 
   // Busca TODAS as visitas (admin bypassa RLS)
   let allVisits: any[] = []
+  let adminClientFailed = false
   try {
     const { data, error } = await admin
       .from('visits')
       .select('id, visited_at, notes, venues(id, name, address, neighborhood, city, type)')
       .order('visited_at', { ascending: false })
-    if (error) console.error('[brand/visits] visits fetch error:', error.message)
-    else allVisits = data ?? []
+    if (error) {
+      console.error('[brand/visits] visits fetch error:', error.message)
+      adminClientFailed = true
+    } else {
+      allVisits = data ?? []
+    }
   } catch (e) {
     console.error('[brand/visits] admin client falhou:', e)
+    adminClientFailed = true
   }
 
   // Positivações da marca com visit_id
@@ -83,6 +89,13 @@ export default async function BrandVisitsPage({ searchParams }: { searchParams: 
       </div>
 
       <Suspense><BrandTabs brands={allBrands} /></Suspense>
+
+      {adminClientFailed && (
+        <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm text-amber-600 dark:text-amber-400">
+          ⚠️ Exibindo apenas visitas vinculadas à marca — a chave de serviço (SUPABASE_SERVICE_ROLE_KEY) pode estar
+          incorreta no Vercel. Verifique se o valor é a <strong>service role key</strong> (não a anon key).
+        </div>
+      )}
 
       {visits.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
