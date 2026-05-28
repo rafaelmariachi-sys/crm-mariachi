@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { StatsCard } from '@/components/stats-card'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getCurrentMonthRange, getDueDateLabel } from '@/lib/utils'
@@ -13,6 +14,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function BrandDashboard({ searchParams }: { searchParams: { brand?: string } }) {
   const supabase = createClient()
+  const admin = createAdminClient()
   const { start, end } = getCurrentMonthRange()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -29,28 +31,26 @@ export default async function BrandDashboard({ searchParams }: { searchParams: {
   const brandOr = `brand_id.in.(${brandIds.join(',')}),brand_id.is.null`
 
   const [
-    { data: posVisit },
-    { data: allFollowupsWithVisit },
+    { count: visitsThisMonth },
     { data: allPositivations },
     { data: openFollowups },
   ] = await Promise.all([
-    // Apenas positivações confirmadas contam como visita ao bar
-    supabase.from('positivations').select('visits(visited_at, venue_id)').in('brand_id', brandIds).eq('status', 'positivado'),
-    supabase.from('followups').select('visits(visited_at, venue_id)').or(brandOr),
-    // Todas as positivações para quebrar por status
+    // TODAS as visitas do mês — admin bypassa RLS
+    admin
+      .from('visits')
+      .select('*', { count: 'exact', head: true })
+      .gte('visited_at', start)
+      .lte('visited_at', end + 'T23:59:59'),
+    // Todas as positivações da marca para quebrar por status
     supabase.from('positivations').select('status').in('brand_id', brandIds),
-    supabase.from('followups').select('id, content, due_date, status, visits(venues(name))').or(brandOr).eq('status', 'aberto').order('due_date', { ascending: true }).limit(5),
-  ])
-
-  const inRange = (dateStr: string) => dateStr >= start && dateStr <= end
-
-  const venueIdsThisMonth = new Set([
-    ...(posVisit || [])
-      .filter((p: any) => p.visits?.visited_at && inRange(p.visits.visited_at) && p.visits?.venue_id)
-      .map((p: any) => p.visits.venue_id),
-    ...(allFollowupsWithVisit || [])
-      .filter((f: any) => f.visits?.visited_at && inRange(f.visits.visited_at) && f.visits?.venue_id)
-      .map((f: any) => f.visits.venue_id),
+    // Follow-ups abertos da marca
+    supabase
+      .from('followups')
+      .select('id, content, due_date, status, visits(venues(name))')
+      .or(brandOr)
+      .eq('status', 'aberto')
+      .order('due_date', { ascending: true })
+      .limit(5),
   ])
 
   // Contagem por status
@@ -70,7 +70,7 @@ export default async function BrandDashboard({ searchParams }: { searchParams: {
 
       {/* Linha 1: visitas + follow-ups */}
       <div className="grid grid-cols-2 gap-3">
-        <StatsCard title="Visitas este mês" value={venueIdsThisMonth.size} icon={CalendarCheck} />
+        <StatsCard title="Visitas este mês" value={visitsThisMonth ?? 0} icon={CalendarCheck} />
         <StatsCard title="Follow-ups abertos" value={openFollowups?.length ?? 0} icon={Clock} iconClassName="bg-amber-500/10" />
       </div>
 
