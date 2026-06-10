@@ -193,7 +193,7 @@ export default function EditVisitPage() {
               <Input type="date" value={visitedAt} onChange={(e) => setVisitedAt(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Notas gerais</Label>
+              <Label>Follow-up Geral</Label>
               <Textarea placeholder="Observações gerais sobre a visita..." value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
             </div>
           </CardContent>

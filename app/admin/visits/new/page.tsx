@@ -319,8 +319,8 @@ export default function NewVisitPage() {
               <Input type="date" value={visitedAt} onChange={(e) => setVisitedAt(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Notas gerais</Label>
-              <Textarea placeholder="Observações gerais sobre a visita..." value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
+              <Label>Follow-up Geral</Label>
+              <Textarea placeholder="Observações gerais, visita de relacionamento, prospecção..." value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
             </div>
           </CardContent>
         </Card>

@@ -71,13 +71,15 @@ export async function generateBrandReportPDF(
   doc.text('RESUMO DO MÊS', M, y)
   y += 4
 
+  const visitsWithFollowup = allVisits.filter((v: any) => v.notes?.trim())
+
   const cards = [
     { label: 'Visitas no mês', value: allVisits.length },
-    { label: 'Positivações no mês', value: monthPositivations.length },
-    { label: 'Positivados (total)', value: statusCounts.positivado },
+    { label: 'Novas positivações no mês', value: monthPositivations.length },
+    { label: 'Total positivados (portfólio)', value: statusCounts.positivado },
     { label: 'Em Negociação', value: statusCounts.em_negociacao },
-    { label: 'Perdidos', value: statusCounts.perdido + statusCounts.inativo },
-    { label: 'Follow-ups no mês', value: followups.length },
+    { label: 'Follow-ups direcionados', value: followups.length },
+    { label: 'Follow-ups gerais', value: visitsWithFollowup.length },
   ]
 
   const cols = 3
@@ -131,7 +133,7 @@ export async function generateBrandReportPDF(
   section(`VISITAS — ${monthLabelUp.toUpperCase()}`)
   autoTable(doc, {
     ...tbl, startY: y,
-    head: [['Data', 'Casa', 'Tipo', 'Bairro · Cidade', 'Observações']],
+    head: [['Data', 'Casa', 'Tipo', 'Bairro · Cidade', 'Follow-up Geral']],
     body: allVisits.length === 0
       ? noData('Nenhuma visita registrada no período')
       : allVisits.map((v: any) => [
@@ -184,13 +186,13 @@ export async function generateBrandReportPDF(
   })
   y = (doc as any).lastAutoTable.finalY + 10
 
-  // 4. Follow-ups do mês
-  section(`FOLLOW-UPS — ${monthLabelUp.toUpperCase()}`)
+  // 4. Follow-ups direcionados do mês
+  section(`FOLLOW-UPS DIRECIONADOS — ${monthLabelUp.toUpperCase()}`)
   autoTable(doc, {
     ...tbl, startY: y,
     head: [['Conteúdo', 'Casa', 'Vencimento', 'Status']],
     body: followups.length === 0
-      ? noData('Nenhum follow-up com vencimento neste período')
+      ? noData('Nenhum follow-up direcionado com vencimento neste período')
       : followups.map((f: any) => [
           f.content || '—',
           f.visits?.venues?.name || '—',
@@ -198,6 +200,22 @@ export async function generateBrandReportPDF(
           FOLLOWUP_STATUS_LABELS[f.status] || f.status,
         ]),
     columnStyles: { 0: { cellWidth: 75 }, 2: { cellWidth: 24 }, 3: { cellWidth: 24 } },
+  })
+  y = (doc as any).lastAutoTable.finalY + 10
+
+  // 5. Follow-up geral (observações das visitas — sem marca específica)
+  section(`FOLLOW-UP GERAL — ${monthLabelUp.toUpperCase()}`)
+  autoTable(doc, {
+    ...tbl, startY: y,
+    head: [['Data', 'Casa', 'Observação / Relacionamento / Prospecção']],
+    body: visitsWithFollowup.length === 0
+      ? noData('Nenhuma observação geral registrada no período')
+      : visitsWithFollowup.map((v: any) => [
+          format(new Date(v.visited_at), 'dd/MM/yyyy', { locale: ptBR }),
+          v.venues?.name || '—',
+          v.notes || '—',
+        ]),
+    columnStyles: { 0: { cellWidth: 22 }, 1: { cellWidth: 50 } },
   })
 
   // Footer em todas as páginas

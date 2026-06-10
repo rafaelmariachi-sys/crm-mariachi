@@ -66,7 +66,7 @@ export default async function VisitDetailPage({ params }: { params: { id: string
       {/* Notes */}
       {v.notes && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Notas gerais</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">Follow-up Geral</CardTitle></CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground whitespace-pre-wrap">{v.notes}</p>
           </CardContent>
