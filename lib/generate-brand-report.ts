@@ -30,9 +30,10 @@ export async function generateBrandReportPDF(
   const monthLabelUp = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)
   const now = new Date()
 
-  // Positivações do mês
+  // Positivações do mês — usa apenas positivated_at (não cai em created_at,
+  // que pode ser recente mesmo para positivações antigas sem data definida)
   const monthPositivations = allPositivations.filter((p: any) => {
-    const date = (p.positivated_at || p.created_at || '').substring(0, 10)
+    const date = (p.positivated_at || '').substring(0, 10)
     return date >= start && date <= end
   })
 
@@ -152,7 +153,7 @@ export async function generateBrandReportPDF(
       ? noData('Nenhuma positivação no período')
       : monthPositivations.map((p: any) => {
           const v = p.venues || p.visits?.venues
-          const date = (p.positivated_at || p.created_at || '').substring(0, 10)
+          const date = (p.positivated_at || '').substring(0, 10)
           return [
             p.product_name || '—', v?.name || '—',
             [v?.neighborhood, v?.city].filter(Boolean).join(' · ') || '—',
