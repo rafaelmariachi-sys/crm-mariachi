@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/components/ui/use-toast'
 import { Skeleton } from '@/components/ui/skeleton'
-import { MessageSquare, Loader2 } from 'lucide-react'
+import { MessageSquare, Loader2, Search, X } from 'lucide-react'
+import { Input } from '@/components/ui/input'
 import { Followup, FollowupStatus, FOLLOWUP_STATUS_LABELS, FOLLOWUP_STATUS_COLORS, Brand } from '@/lib/types'
 import { formatDate, getDueDateLabel } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -20,6 +21,7 @@ export default function FollowupsPage() {
   const [loading, setLoading] = useState(true)
   const [filterBrand, setFilterBrand] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [venueSearch, setVenueSearch] = useState('')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const { toast } = useToast()
   const supabase = createClient()
@@ -48,10 +50,15 @@ export default function FollowupsPage() {
     setUpdatingId(null)
   }
 
+  const venueQ = venueSearch.toLowerCase().trim()
   const filtered = followups.filter((f) => {
     const matchBrand = filterBrand === 'all' || (f as any).brands?.name === filterBrand
     const matchStatus = filterStatus === 'all' || f.status === filterStatus
-    return matchBrand && matchStatus
+    const matchVenue = !venueQ || (
+      ((f as any).visits?.venues?.name || '').toLowerCase().includes(venueQ) ||
+      ((f as any).visits?.venues?.city || '').toLowerCase().includes(venueQ)
+    )
+    return matchBrand && matchStatus && matchVenue
   })
 
   return (
@@ -83,6 +90,23 @@ export default function FollowupsPage() {
             ))}
           </SelectContent>
         </Select>
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            placeholder="Buscar estabelecimento..."
+            value={venueSearch}
+            onChange={(e) => setVenueSearch(e.target.value)}
+            className="pl-9 pr-9 h-10"
+          />
+          {venueSearch && (
+            <button
+              onClick={() => setVenueSearch('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {loading ? (

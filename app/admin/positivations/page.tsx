@@ -10,6 +10,7 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { StatusTabs } from '@/components/brand/status-tabs'
 import { ViewTabs } from '@/components/brand/view-tabs'
+import { VenueSearchInput } from '@/components/admin/venue-search-input'
 import { cn } from '@/lib/utils'
 import { Suspense } from 'react'
 
@@ -25,12 +26,13 @@ const STATUS_COLORS: Record<string, string> = {
 export default async function PositivationsPage({
   searchParams,
 }: {
-  searchParams: { status?: string; view?: string }
+  searchParams: { status?: string; view?: string; venue?: string }
 }) {
   const supabase = createClient()
 
   const selectedStatus = searchParams.status || 'all'
   const selectedView = searchParams.view || 'casa'
+  const venueSearch = (searchParams.venue || '').toLowerCase().trim()
 
   let query = supabase
     .from('positivations')
@@ -61,10 +63,21 @@ export default async function PositivationsPage({
     return format(new Date(d.includes('T') ? d : d + 'T12:00:00'), 'dd/MM/yy', { locale: ptBR })
   }
 
+  // ── Filtro por estabelecimento ──────────────────────────────────────
+  const displayedPositivations = venueSearch
+    ? (positivations || []).filter((p: any) => {
+        const venue = getVenue(p)
+        const name = (venue?.name || '').toLowerCase()
+        const city = (venue?.city || '').toLowerCase()
+        const neighborhood = (venue?.neighborhood || '').toLowerCase()
+        return name.includes(venueSearch) || city.includes(venueSearch) || neighborhood.includes(venueSearch)
+      })
+    : (positivations || [])
+
   // ── Detecção de duplicatas ───────────────────────────────────────────
   // Chave: brand_id + venue_id + product_name normalizado
   const keyCount = new Map<string, number>()
-  ;(positivations || []).forEach((p: any) => {
+  ;displayedPositivations.forEach((p: any) => {
     const venue = p.venues || p.visits?.venues
     const venueKey = venue?.id || `visit-${p.visit_id}` || 'sem-venue'
     const key = `${p.brand_id}__${venueKey}__${(p.product_name || '').toLowerCase().trim()}`
@@ -79,7 +92,7 @@ export default async function PositivationsPage({
 
   // ── VIEW: Por casa ──────────────────────────────────────────────────
   const venueMap = new Map<string, { venue: any; items: any[] }>()
-  ;(positivations || []).forEach((p: any) => {
+  ;displayedPositivations.forEach((p: any) => {
     const venue = getVenue(p)
     const venueId = venue?.id || (p.visit_id ? `visit-${p.visit_id}` : 'sem-venue')
     const venueName = venue?.name || (p.visit_id ? '(via visita)' : 'Sem estabelecimento')
@@ -103,7 +116,7 @@ export default async function PositivationsPage({
       venues: { id: string; venue: any; status: string; notes: string | null; dateStr: string }[]
     }
   >()
-  ;(positivations || []).forEach((p: any) => {
+  ;displayedPositivations.forEach((p: any) => {
     const venue = getVenue(p)
     const key = `${p.brand_id}__${p.product_name || 'Sem SKU'}`
     if (!productMap.has(key)) {
@@ -157,6 +170,16 @@ export default async function PositivationsPage({
       {/* Filtros */}
       <Suspense><ViewTabs /></Suspense>
       <Suspense><StatusTabs /></Suspense>
+      <Suspense>
+        <VenueSearchInput placeholder="Buscar estabelecimento, bairro ou cidade..." />
+      </Suspense>
+      {venueSearch && (
+        <p className="text-sm text-muted-foreground">
+          {displayedPositivations.length === 0
+            ? 'Nenhum resultado para essa busca'
+            : `${displayedPositivations.length} positivaç${displayedPositivations.length === 1 ? 'ão' : 'ões'} encontrada${displayedPositivations.length === 1 ? '' : 's'}`}
+        </p>
+      )}
 
       {/* ── VISTA: POR CASA ── */}
       {selectedView === 'casa' && (

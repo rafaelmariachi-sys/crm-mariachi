@@ -18,6 +18,7 @@ export default async function AdminDashboard() {
   const [
     { count: visitsThisMonth },
     { data: positivationsByStatus },
+    { data: positivatedVenues },
     { data: overdueFollowups },
     { data: recentVisits },
   ] = await Promise.all([
@@ -30,6 +31,12 @@ export default async function AdminDashboard() {
     supabase
       .from('positivations')
       .select('status'),
+
+    // Unique venues with at least one positivação with status='positivado'
+    supabase
+      .from('positivations')
+      .select('venue_id, visit_id, visits(venue_id)')
+      .eq('status', 'positivado'),
 
     supabase
       .from('followups')
@@ -58,6 +65,14 @@ export default async function AdminDashboard() {
     if (p.status in statusCounts) statusCounts[p.status]++
   })
 
+  // Unique positivated venues (clientes únicos positivados)
+  const uniquePositivatedVenues = new Set<string>()
+  ;(positivatedVenues || []).forEach((p: any) => {
+    const venueId = p.venue_id || p.visits?.venue_id
+    if (venueId) uniquePositivatedVenues.add(venueId)
+  })
+  const uniqueClientCount = uniquePositivatedVenues.size
+
   return (
     <div className="p-4 sm:p-6 space-y-5">
       <div>
@@ -73,8 +88,8 @@ export default async function AdminDashboard() {
           icon={CalendarCheck}
         />
         <StatsCard
-          title="Positivados"
-          value={statusCounts.positivado}
+          title="Clientes positivados"
+          value={uniqueClientCount}
           icon={CheckCircle}
           iconClassName="bg-emerald-500/10"
         />
