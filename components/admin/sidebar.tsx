@@ -15,6 +15,9 @@ import {
   CalendarRange,
   Star,
   Images,
+  Target,
+  Route,
+  FileDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -31,6 +34,9 @@ const navItems = [
   { href: '/admin/agenda', label: 'Agenda', icon: CalendarRange },
   { href: '/admin/media', label: 'Mídia', icon: Images },
   { href: '/admin/brands', label: 'Marcas', icon: Package },
+  { href: '/admin/prospeccao', label: 'Prospecção', icon: Target },
+  { href: '/admin/rotas',      label: 'Rotas',      icon: Route  },
+  { href: '/admin/reports',    label: 'Relatórios', icon: FileDown },
 ]
 
 export function AdminSidebar() {
