@@ -11,6 +11,8 @@ import { POSITIVATION_STATUS_LABELS, PositivationStatus } from '@/lib/types'
 interface Props {
   brandIds: string[]
   brandName: string
+  /** Quando fornecido, o seletor de mês fica oculto e este valor é usado */
+  controlledMonth?: string
 }
 
 const FOLLOWUP_STATUS_LABELS: Record<string, string> = {
@@ -19,11 +21,12 @@ const FOLLOWUP_STATUS_LABELS: Record<string, string> = {
   cancelado: 'Cancelado',
 }
 
-export function DownloadReportButton({ brandIds, brandName }: Props) {
+export function DownloadReportButton({ brandIds, brandName, controlledMonth }: Props) {
   const [loading, setLoading] = useState(false)
-  const [selectedMonth, setSelectedMonth] = useState(
+  const [internalMonth, setInternalMonth] = useState(
     format(subMonths(new Date(), 1), 'yyyy-MM')
   )
+  const selectedMonth = controlledMonth ?? internalMonth
 
   async function generate() {
     if (!brandIds.length) return
@@ -283,18 +286,20 @@ export function DownloadReportButton({ brandIds, brandName }: Props) {
 
   return (
     <div className="flex items-center gap-2">
-      <input
-        type="month"
-        value={selectedMonth}
-        max={format(new Date(), 'yyyy-MM')}
-        onChange={(e) => setSelectedMonth(e.target.value)}
-        className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-      />
+      {!controlledMonth && (
+        <input
+          type="month"
+          value={internalMonth}
+          max={format(new Date(), 'yyyy-MM')}
+          onChange={(e) => setInternalMonth(e.target.value)}
+          className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        />
+      )}
       <Button onClick={generate} disabled={loading} variant="outline" className="gap-2 whitespace-nowrap">
         {loading
           ? <Loader2 className="h-4 w-4 animate-spin" />
           : <Download className="h-4 w-4" />}
-        {loading ? 'Gerando...' : 'Baixar Relatório'}
+        {loading ? 'Gerando...' : brandName}
       </Button>
     </div>
   )

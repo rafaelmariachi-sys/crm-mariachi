@@ -6,7 +6,7 @@ import { MapPin, TrendingUp } from 'lucide-react'
 import { POSITIVATION_STATUS_LABELS, PositivationStatus } from '@/lib/types'
 import { BrandCharts } from './charts'
 import { BrandTabs } from '@/components/brand/brand-tabs'
-import { DownloadReportButton } from '@/components/brand/download-report-button'
+import { DownloadReportGroup } from '@/components/brand/download-report-group'
 import { Suspense } from 'react'
 
 export const dynamic = 'force-dynamic'
@@ -95,7 +95,12 @@ export default async function BrandReportsPage({ searchParams }: { searchParams:
           <h1 className="text-2xl font-bold">Relatórios</h1>
           <p className="text-muted-foreground text-sm">Visão analítica</p>
         </div>
-        <DownloadReportButton brandIds={brandIds} brandName={brandName} />
+        <DownloadReportGroup
+          brands={selectedBrand
+            ? [{ id: selectedBrand, name: brandName }]
+            : allBrands
+          }
+        />
       </div>
 
       <Suspense><BrandTabs brands={allBrands} /></Suspense>
