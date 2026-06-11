@@ -46,8 +46,8 @@ export default function NewPositivationPage() {
   const [newVenueForm, setNewVenueForm] = useState(emptyNewVenue)
   const [savingVenue, setSavingVenue] = useState(false)
 
-  // Date
-  const [positivatedAt, setPositivatedAt] = useState(format(new Date(), 'yyyy-MM-dd'))
+  // Date — começa vazio; só preencher para positivações novas (do mês atual)
+  const [positivatedAt, setPositivatedAt] = useState('')
 
   // Positivation rows
   const [rows, setRows] = useState<PositivationRow[]>([
@@ -169,7 +169,7 @@ export default function NewPositivationPage() {
 
     const inserts = rows.map((r) => ({
       venue_id: venueId,
-      positivated_at: positivatedAt,
+      positivated_at: positivatedAt || null,
       brand_id: r.brand_id,
       product_name: r.product_name,
       status: r.status,
@@ -328,8 +328,12 @@ export default function NewPositivationPage() {
 
             {/* Date */}
             <div className="space-y-2">
-              <Label>Data da positivação *</Label>
+              <Label>Data da positivação</Label>
               <Input type="date" value={positivatedAt} onChange={(e) => setPositivatedAt(e.target.value)} />
+              <p className="text-xs text-muted-foreground">
+                Preencha apenas se a positivação aconteceu agora — a data define em qual mês ela aparece no relatório.
+                Deixe em branco para portfólio já existente (aparece só em "Status Atual").
+              </p>
             </div>
           </CardContent>
         </Card>
