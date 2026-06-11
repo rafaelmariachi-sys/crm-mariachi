@@ -30,12 +30,18 @@ export async function generateBrandReportPDF(
   const monthLabelUp = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)
   const now = new Date()
 
-  // Positivações do mês — usa apenas positivated_at (não cai em created_at,
-  // que pode ser recente mesmo para positivações antigas sem data definida)
+  // Positivados no mês — apenas status 'positivado' com data no período
   const monthPositivations = allPositivations.filter((p: any) => {
+    if (p.status !== 'positivado') return false
     const date = (p.positivated_at || '').substring(0, 10)
     return date >= start && date <= end
   })
+
+  // Em negociação — todos (independente de mês), são negociações ativas
+  const emNegociacao = allPositivations.filter((p: any) => p.status === 'em_negociacao')
+
+  // Portfolio positivado completo — apenas status 'positivado'
+  const portfolioPositivado = allPositivations.filter((p: any) => p.status === 'positivado')
 
   // Resumo por status
   const statusCounts: Record<string, number> = { positivado: 0, em_negociacao: 0, perdido: 0, inativo: 0 }
@@ -146,47 +152,66 @@ export async function generateBrandReportPDF(
   })
   y = (doc as any).lastAutoTable.finalY + 10
 
-  // 2. Positivações do mês
-  section(`POSITIVAÇÕES DO MÊS — ${monthLabelUp.toUpperCase()}`)
+  // 2. Positivados no mês (apenas status = positivado)
+  section(`POSITIVADOS NO MÊS — ${monthLabelUp.toUpperCase()}`)
   autoTable(doc, {
     ...tbl, startY: y,
-    head: [['Produto', 'Casa', 'Bairro · Cidade', 'Status', 'Data']],
+    head: [['Produto', 'Casa', 'Bairro · Cidade', 'Data']],
     body: monthPositivations.length === 0
-      ? noData('Nenhuma positivação no período')
+      ? noData('Nenhuma positivação confirmada no período')
       : monthPositivations.map((p: any) => {
           const v = p.venues || p.visits?.venues
           const date = (p.positivated_at || '').substring(0, 10)
           return [
             p.product_name || '—', v?.name || '—',
             [v?.neighborhood, v?.city].filter(Boolean).join(' · ') || '—',
-            POSITIVATION_STATUS_LABELS[p.status as PositivationStatus] || p.status,
             date ? format(new Date(date + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR }) : '—',
           ]
         }),
-    columnStyles: { 3: { cellWidth: 28 }, 4: { cellWidth: 22 } },
+    columnStyles: { 3: { cellWidth: 24 } },
   })
   y = (doc as any).lastAutoTable.finalY + 10
 
-  // 3. Status atual — todas as positivações
-  section('POSITIVAÇÕES — STATUS ATUAL (TODAS)')
+  // 3. Em negociação (todos, independente de mês — negociações ativas)
+  section('EM NEGOCIAÇÃO')
+  autoTable(doc, {
+    ...tbl,
+    headStyles: { fillColor: [120, 80, 20] as [number, number, number], textColor: 255, fontStyle: 'bold' as const, fontSize: 7.5 },
+    startY: y,
+    head: [['Produto', 'Casa', 'Bairro · Cidade', 'Data']],
+    body: emNegociacao.length === 0
+      ? noData('Nenhum cliente em negociação')
+      : emNegociacao.map((p: any) => {
+          const v = p.venues || p.visits?.venues
+          const date = (p.positivated_at || '').substring(0, 10)
+          return [
+            p.product_name || '—', v?.name || '—',
+            [v?.neighborhood, v?.city].filter(Boolean).join(' · ') || '—',
+            date ? format(new Date(date + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR }) : '—',
+          ]
+        }),
+    columnStyles: { 3: { cellWidth: 24 } },
+  })
+  y = (doc as any).lastAutoTable.finalY + 10
+
+  // 4. Portfolio positivado completo — só status 'positivado'
+  section('PORTFOLIO POSITIVADO — STATUS ATUAL')
   autoTable(doc, {
     ...tbl, startY: y,
-    head: [['Produto', 'Casa', 'Bairro · Cidade', 'Status']],
-    body: allPositivations.length === 0
-      ? noData('Nenhuma positivação cadastrada')
-      : allPositivations.map((p: any) => {
+    head: [['Produto', 'Casa', 'Bairro · Cidade']],
+    body: portfolioPositivado.length === 0
+      ? noData('Nenhum produto positivado cadastrado')
+      : portfolioPositivado.map((p: any) => {
           const v = p.venues || p.visits?.venues
           return [
             p.product_name || '—', v?.name || '—',
             [v?.neighborhood, v?.city].filter(Boolean).join(' · ') || '—',
-            POSITIVATION_STATUS_LABELS[p.status as PositivationStatus] || p.status,
           ]
         }),
-    columnStyles: { 3: { cellWidth: 28 } },
   })
   y = (doc as any).lastAutoTable.finalY + 10
 
-  // 4. Follow-ups direcionados do mês
+  // 5. Follow-ups direcionados do mês
   section(`FOLLOW-UPS DIRECIONADOS — ${monthLabelUp.toUpperCase()}`)
   autoTable(doc, {
     ...tbl, startY: y,
@@ -203,7 +228,7 @@ export async function generateBrandReportPDF(
   })
   y = (doc as any).lastAutoTable.finalY + 10
 
-  // 5. Follow-up geral (observações das visitas — sem marca específica)
+  // 6. Follow-up geral (observações das visitas — sem marca específica)
   section(`FOLLOW-UP GERAL — ${monthLabelUp.toUpperCase()}`)
   autoTable(doc, {
     ...tbl, startY: y,
