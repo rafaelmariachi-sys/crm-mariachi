@@ -167,6 +167,8 @@ export default function NewPositivationPage() {
 
     setSaving(true)
 
+    const { data: { user } } = await supabase.auth.getUser()
+
     const inserts = rows.map((r) => ({
       venue_id: venueId,
       positivated_at: positivatedAt || null,
@@ -174,6 +176,7 @@ export default function NewPositivationPage() {
       product_name: r.product_name,
       status: r.status,
       notes: r.notes || null,
+      created_by: user?.id || null,
     }))
 
     const { error } = await supabase.from('positivations').insert(inserts)

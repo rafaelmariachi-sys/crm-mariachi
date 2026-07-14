@@ -163,8 +163,10 @@ export default function NewVisitPage() {
     }
     setSaving(true)
 
+    const { data: { user } } = await supabase.auth.getUser()
+
     const { data: visit, error: visitError } = await supabase
-      .from('visits').insert({ venue_id: venueId, visited_at: visitedAt, notes }).select().single()
+      .from('visits').insert({ venue_id: venueId, visited_at: visitedAt, notes, created_by: user?.id }).select().single()
 
     if (visitError) {
       toast({ title: 'Erro ao criar visita', description: visitError.message, variant: 'destructive' })
@@ -172,7 +174,7 @@ export default function NewVisitPage() {
     }
 
     if (positivations.length > 0) {
-      await supabase.from('positivations').insert(positivations.map((p) => ({ ...p, visit_id: visit.id })))
+      await supabase.from('positivations').insert(positivations.map((p) => ({ ...p, visit_id: visit.id, created_by: user?.id })))
     }
     if (followups.length > 0) {
       await supabase.from('followups').insert(followups.map((f) => ({
@@ -180,6 +182,7 @@ export default function NewVisitPage() {
         brand_id: f.brand_id === 'all' ? null : f.brand_id || null,
         visit_id: visit.id,
         due_date: f.due_date || null,
+        created_by: user?.id,
       })))
     }
 

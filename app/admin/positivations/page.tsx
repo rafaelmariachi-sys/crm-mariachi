@@ -30,13 +30,16 @@ export default async function PositivationsPage({
 }) {
   const supabase = createClient()
 
+  const { data: { user } } = await supabase.auth.getUser()
+  const currentUserId = user?.id
+
   const selectedStatus = searchParams.status || 'all'
   const selectedView = searchParams.view || 'casa'
   const venueSearch = (searchParams.venue || '').toLowerCase().trim()
 
   let query = supabase
     .from('positivations')
-    .select('id, status, product_name, notes, positivated_at, created_at, brand_id, brands(name), venue_id, venues(id, name, neighborhood, city), visit_id, visits(venue_id, venues(id, name, neighborhood, city))')
+    .select('id, status, product_name, notes, positivated_at, created_at, created_by, brand_id, brands(name), venue_id, venues(id, name, neighborhood, city), visit_id, visits(venue_id, venues(id, name, neighborhood, city))')
     .order('positivated_at', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false })
 
@@ -113,7 +116,7 @@ export default async function PositivationsPage({
       productName: string
       brand: string
       statusSummary: Record<string, number>
-      venues: { id: string; venue: any; status: string; notes: string | null; dateStr: string }[]
+      venues: { id: string; venue: any; status: string; notes: string | null; dateStr: string; created_by: string | null }[]
     }
   >()
   ;displayedPositivations.forEach((p: any) => {
@@ -135,6 +138,7 @@ export default async function PositivationsPage({
       status: p.status,
       notes: p.notes,
       dateStr: getDateStr(p),
+      created_by: p.created_by || null,
     })
   })
   const products = Array.from(productMap.values()).sort((a, b) =>
@@ -235,7 +239,7 @@ export default async function PositivationsPage({
                             {POSITIVATION_STATUS_LABELS[p.status as PositivationStatus] || p.status}
                           </Badge>
                           <span className="text-xs text-muted-foreground whitespace-nowrap">{getDateStr(p)}</span>
-                          <DeletePositivationButton id={p.id} />
+                          {p.created_by === currentUserId && <DeletePositivationButton id={p.id} />}
                         </div>
                       </div>
                     ))}
@@ -307,7 +311,7 @@ export default async function PositivationsPage({
                               {POSITIVATION_STATUS_LABELS[entry.status as PositivationStatus] || entry.status}
                             </Badge>
                             <span className="text-xs text-muted-foreground">{entry.dateStr}</span>
-                            <DeletePositivationButton id={entry.id} />
+                            {entry.created_by === currentUserId && <DeletePositivationButton id={entry.id} />}
                           </div>
                         </div>
                       ))}

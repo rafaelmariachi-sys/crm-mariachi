@@ -23,26 +23,34 @@ export default function FollowupsPage() {
   const [filterStatus, setFilterStatus] = useState('all')
   const [venueSearch, setVenueSearch] = useState('')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const { toast } = useToast()
   const supabase = createClient()
 
   async function load() {
     setLoading(true)
-    const [{ data: f }, { data: b }] = await Promise.all([
+    const [{ data: f }, { data: b }, { data: { user } }] = await Promise.all([
       supabase
         .from('followups')
         .select('*, brands(name), visits(venue_id, venues(name, city))')
         .order('due_date', { ascending: true, nullsFirst: false }),
       supabase.from('brands').select('*').order('name'),
+      supabase.auth.getUser(),
     ])
     setFollowups((f as any[]) || [])
     setBrands(b || [])
+    setCurrentUserId(user?.id || null)
     setLoading(false)
   }
 
   useEffect(() => { load() }, [])
 
   async function updateStatus(id: string, status: FollowupStatus) {
+    const followup = followups.find((f) => f.id === id)
+    if (!followup || (followup as any).created_by !== currentUserId) {
+      toast({ title: 'Sem permissão', description: 'Você não pode editar registros de outro colaborador.', variant: 'destructive' })
+      return
+    }
     setUpdatingId(id)
     const { error } = await supabase.from('followups').update({ status }).eq('id', id)
     if (error) toast({ title: 'Erro ao atualizar status', variant: 'destructive' })
@@ -146,7 +154,7 @@ export default function FollowupsPage() {
                       <Select
                         value={f.status}
                         onValueChange={(v) => updateStatus(f.id, v as FollowupStatus)}
-                        disabled={updatingId === f.id}
+                        disabled={updatingId === f.id || f.created_by !== currentUserId}
                       >
                         <SelectTrigger className={cn('h-8 text-xs border', FOLLOWUP_STATUS_COLORS[f.status as FollowupStatus])}>
                           {updatingId === f.id ? (

@@ -27,6 +27,7 @@ export default function EditVisitPage() {
   const [brands, setBrands] = useState<Brand[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   const [venueName, setVenueName] = useState('')
   const [visitedAt, setVisitedAt] = useState('')
@@ -36,19 +37,25 @@ export default function EditVisitPage() {
 
   useEffect(() => {
     async function load() {
-      const [{ data: b }, { data: visit }] = await Promise.all([
+      const [{ data: b }, { data: visit }, { data: { user } }] = await Promise.all([
         supabase.from('brands').select('*').order('name'),
         supabase.from('visits').select(`
-          id, visited_at, notes,
+          id, visited_at, notes, created_by,
           venues(name),
           positivations(id, brand_id, product_name, status, notes),
           followups(id, brand_id, content, due_date, status)
         `).eq('id', visitId).single(),
+        supabase.auth.getUser(),
       ])
 
-      setBrands(b || [])
       if (visit) {
         const v = visit as any
+        if (v.created_by && v.created_by !== user?.id) {
+          router.replace(`/admin/visits/${visitId}`)
+          return
+        }
+        setCurrentUserId(user?.id || null)
+        setBrands(b || [])
         setVenueName(v.venues?.name || '')
         setVisitedAt(v.visited_at || '')
         setNotes(v.notes || '')
@@ -131,7 +138,7 @@ export default function EditVisitPage() {
     }
     if (toInsertPos.length > 0) {
       await supabase.from('positivations').insert(
-        toInsertPos.map((p) => ({ brand_id: p.brand_id, product_name: p.product_name, status: p.status, notes: p.notes, visit_id: visitId }))
+        toInsertPos.map((p) => ({ brand_id: p.brand_id, product_name: p.product_name, status: p.status, notes: p.notes, visit_id: visitId, created_by: currentUserId }))
       )
     }
 
@@ -149,7 +156,7 @@ export default function EditVisitPage() {
     }
     if (toInsertFol.length > 0) {
       await supabase.from('followups').insert(
-        toInsertFol.map((f) => ({ brand_id: f.brand_id === 'all' ? null : f.brand_id || null, content: f.content, due_date: f.due_date || null, status: f.status, visit_id: visitId }))
+        toInsertFol.map((f) => ({ brand_id: f.brand_id === 'all' ? null : f.brand_id || null, content: f.content, due_date: f.due_date || null, status: f.status, visit_id: visitId, created_by: currentUserId }))
       )
     }
 

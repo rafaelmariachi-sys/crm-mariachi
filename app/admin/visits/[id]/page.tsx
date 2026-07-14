@@ -14,20 +14,24 @@ export const dynamic = 'force-dynamic'
 export default async function VisitDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
 
-  const { data: visit } = await supabase
-    .from('visits')
-    .select(`
-      id, visited_at, notes,
-      venues(name, address, neighborhood, city, type),
-      positivations(id, product_name, status, notes, brands(name)),
-      followups(id, content, due_date, status, brands(name))
-    `)
-    .eq('id', params.id)
-    .single()
+  const [{ data: { user } }, { data: visit }] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase
+      .from('visits')
+      .select(`
+        id, visited_at, notes, created_by,
+        venues(name, address, neighborhood, city, type),
+        positivations(id, product_name, status, notes, brands(name)),
+        followups(id, content, due_date, status, brands(name))
+      `)
+      .eq('id', params.id)
+      .single(),
+  ])
 
   if (!visit) notFound()
 
   const v = visit as any
+  const canEdit = v.created_by === user?.id
 
   return (
     <div className="p-6 max-w-2xl mx-auto space-y-6">
@@ -44,12 +48,14 @@ export default async function VisitDetailPage({ params }: { params: { id: string
             </p>
           </div>
         </div>
-        <Link href={`/admin/visits/${v.id}/edit`}>
-          <Button variant="outline" size="sm">
-            <Pencil className="h-3.5 w-3.5 mr-2" />
-            Editar
-          </Button>
-        </Link>
+        {canEdit && (
+          <Link href={`/admin/visits/${v.id}/edit`}>
+            <Button variant="outline" size="sm">
+              <Pencil className="h-3.5 w-3.5 mr-2" />
+              Editar
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Venue info */}
