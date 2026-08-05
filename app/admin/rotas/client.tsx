@@ -52,13 +52,15 @@ function MapPicker({ mapsKey, onChange }: {
   const [mapReady,   setMapReady]   = useState(false)
   const [mapError,   setMapError]   = useState('')
   const [radiusKm,   setRadiusKm]   = useState(3)
-  const [center,     setCenter]     = useState<{ lat: number; lng: number } | null>(null)
-  const radiusRef    = useRef(radiusKm)
-  const centerRef    = useRef(center)
+  const [center,  setCenter]  = useState<{ lat: number; lng: number } | null>(null)
+  const radiusRef   = useRef(radiusKm)
+  const centerRef   = useRef(center)
+  const onChangeRef = useRef(onChange)
 
-  // Keep refs in sync so event listeners can read current values
-  useEffect(() => { radiusRef.current = radiusKm }, [radiusKm])
-  useEffect(() => { centerRef.current = center },   [center])
+  // Keep refs in sync with latest values
+  useEffect(() => { radiusRef.current   = radiusKm  }, [radiusKm])
+  useEffect(() => { centerRef.current   = center    }, [center])
+  useEffect(() => { onChangeRef.current = onChange  }, [onChange])
 
   // Load the Maps JS API
   useEffect(() => {
@@ -115,38 +117,14 @@ function MapPicker({ mapsKey, onChange }: {
       circle.setCenter({ lat, lng })
       circle.setRadius(radiusRef.current * 1000)
       circle.setVisible(true)
+      map.fitBounds(circle.getBounds())
       setCenter({ lat, lng })
+      onChangeRef.current({ lat, lng, radiusKm: radiusRef.current })
     }
 
     map.addListener('click', (e: any) => applyCenter(e.latLng.lat(), e.latLng.lng()))
-    marker.addListener('dragend', (e: any) => {
-      const lat = e.latLng.lat()
-      const lng = e.latLng.lng()
-      circle.setCenter({ lat, lng })
-      setCenter({ lat, lng })
-    })
+    marker.addListener('dragend', (e: any) => applyCenter(e.latLng.lat(), e.latLng.lng()))
   }, [mapReady])
-
-  // Update circle radius
-  useEffect(() => {
-    if (!instanceRef.current?.circle) return
-    instanceRef.current.circle.setRadius(radiusKm * 1000)
-    if (center && instanceRef.current.map) {
-      instanceRef.current.map.fitBounds(instanceRef.current.circle.getBounds())
-    }
-  }, [radiusKm]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Fit bounds after center changes (from click handler)
-  useEffect(() => {
-    if (!center || !instanceRef.current) return
-    instanceRef.current.circle.setCenter(center)
-    instanceRef.current.map.fitBounds(instanceRef.current.circle.getBounds())
-  }, [center])
-
-  // Notify parent
-  useEffect(() => {
-    onChange(center ? { ...center, radiusKm } : null)
-  }, [center, radiusKm]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (mapError) {
     return (
@@ -172,7 +150,17 @@ function MapPicker({ mapsKey, onChange }: {
         <span className="text-xs text-muted-foreground whitespace-nowrap">Raio:</span>
         <input
           type="range" min={1} max={20} step={1} value={radiusKm}
-          onChange={e => setRadiusKm(Number(e.target.value))}
+          onChange={e => {
+            const r = Number(e.target.value)
+            setRadiusKm(r)
+            if (instanceRef.current?.circle) {
+              instanceRef.current.circle.setRadius(r * 1000)
+              if (centerRef.current) {
+                instanceRef.current.map.fitBounds(instanceRef.current.circle.getBounds())
+                onChangeRef.current({ ...centerRef.current, radiusKm: r })
+              }
+            }
+          }}
           className="flex-1 accent-primary cursor-pointer"
         />
         <span className="text-sm font-semibold w-16 text-right">{radiusKm} km</span>
