@@ -85,8 +85,8 @@ export async function POST(req: NextRequest) {
   const apiKey = process.env.GOOGLE_PLACES_API_KEY
   if (!apiKey) return NextResponse.json({ error: 'GOOGLE_PLACES_API_KEY não configurada' }, { status: 500 })
 
-  const { query, typeLabel, lat, lng } = await req.json() as {
-    query: string; typeLabel: string; lat?: number; lng?: number
+  const { query, typeLabel, lat, lng, radius } = await req.json() as {
+    query: string; typeLabel: string; lat?: number; lng?: number; radius?: number
   }
 
   if (!query?.trim()) return NextResponse.json({ error: 'query obrigatória' }, { status: 400 })
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
       params.set('pagetoken', pageToken)
     } else if (lat && lng) {
       params.set('location', `${lat},${lng}`)
-      params.set('radius',   '3000')
+      params.set('radius',   String(radius ?? 3000))
     }
 
     const res  = await fetch(`${MAPS}/textsearch/json?${params}`, { cache: 'no-store' })

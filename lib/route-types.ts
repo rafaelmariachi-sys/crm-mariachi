@@ -330,6 +330,56 @@ export function buildSchedule(
   return { scheduled, manual }
 }
 
+// ── Agenda contínua (horário livre + min/max visitas) ─────────────────────
+
+export function buildScheduleFlat(
+  orderedPlaces: RoutePlace[],
+  startMin: number,
+  maxVenues: number,
+  forceInclude: Set<string> = new Set()
+): { scheduled: RoutePlace[]; manual: RoutePlace[] } {
+  const scheduled: RoutePlace[] = []
+  const manual: RoutePlace[] = []
+  let current = startMin
+
+  for (const place of orderedPlaces) {
+    const forced = forceInclude.has(place.place_id)
+
+    if (!forced && scheduled.length >= maxVenues) {
+      manual.push({ ...place, motivo_manual: 'Limite de visitas atingido' })
+      continue
+    }
+
+    const hours    = getWeekdayHours(place.opening_hours)
+    const duration = getDuration(place.type_label)
+    let arrival    = current
+
+    // Aguarda abertura se chegarmos antes
+    if (hours && arrival < hours.openMin) arrival = hours.openMin
+
+    // Pula se já fechou antes de terminarmos a visita (exceto forçados)
+    if (!forced && hours?.closeMin && arrival + duration > hours.closeMin) {
+      manual.push({ ...place, motivo_manual: 'Estabelecimento fechado neste horário' })
+      continue
+    }
+
+    const janela =
+      arrival < 12 * 60 ? 'Manhã' :
+      arrival < 18 * 60 ? 'Tarde' : 'Noturno'
+
+    scheduled.push({
+      ...place,
+      janela,
+      horario_chegada:  minutesToTime(arrival),
+      duracao_estimada: duration >= 60 ? `${duration / 60}h` : `${duration} min`,
+    })
+
+    current = arrival + duration + TRAVEL_BUFFER
+  }
+
+  return { scheduled, manual }
+}
+
 // ── Links Google Maps ─────────────────────────────────────────────────────
 
 const MAX_STOPS = 9
