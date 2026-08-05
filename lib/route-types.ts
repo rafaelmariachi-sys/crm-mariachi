@@ -216,15 +216,18 @@ export function distanceM(a: { lat: number; lng: number }, b: { lat: number; lng
   return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x))
 }
 
-// ── Nearest-neighbor a partir da Freguesia do Ó ───────────────────────────
+// ── Nearest-neighbor a partir do ponto de origem ─────────────────────────
 
-export function optimizeRoute(places: RoutePlace[]): RoutePlace[] {
+export function optimizeRoute(
+  places: RoutePlace[],
+  origin: { lat: number; lng: number } = ORIGEM
+): RoutePlace[] {
   const withCoords    = places.filter(p => p.lat != null && p.lng != null)
   const withoutCoords = places.filter(p => p.lat == null || p.lng == null)
 
   const unvisited = [...withCoords]
   const route: RoutePlace[] = []
-  let current: { lat: number; lng: number } = ORIGEM
+  let current: { lat: number; lng: number } = origin
 
   while (unvisited.length > 0) {
     let nearestIdx = 0

@@ -3,11 +3,12 @@ import { optimizeRoute, buildScheduleFlat, buildMapsLinks } from '@/lib/route-ty
 import type { RoutePlace } from '@/lib/route-types'
 
 export async function POST(req: NextRequest) {
-  const { places, forceInclude, startTime, maxVenues } = await req.json() as {
+  const { places, forceInclude, startTime, maxVenues, origin } = await req.json() as {
     places: RoutePlace[]
     forceInclude?: string[]
     startTime?: string
     maxVenues?: number
+    origin?: { lat: number; lng: number }
   }
 
   if (!places?.length) {
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
   const max      = maxVenues ?? 12
 
   const forceSet              = new Set<string>(forceInclude ?? [])
-  const ordered               = optimizeRoute(places)
+  const ordered               = optimizeRoute(places, origin)
   const { scheduled, manual } = buildScheduleFlat(ordered, startMin, max, forceSet)
   const mapsLinks             = buildMapsLinks(scheduled)
 

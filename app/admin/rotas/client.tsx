@@ -43,8 +43,9 @@ interface MapArea { lat: number; lng: number; radiusKm: number }
 let _mapsLoading = false
 let _mapsLoaded  = false
 
-function MapPicker({ mapsKey, onChange }: {
+function MapPicker({ mapsKey, userLocation, onChange }: {
   mapsKey: string
+  userLocation: { lat: number; lng: number } | null
   onChange: (area: MapArea | null) => void
 }) {
   const mapDivRef    = useRef<HTMLDivElement>(null)
@@ -90,9 +91,10 @@ function MapPicker({ mapsKey, onChange }: {
     if (!mapReady || !mapDivRef.current || instanceRef.current) return
     const g = (window as any).google.maps
 
+    const mapCenter = userLocation ?? { lat: ORIGEM.lat, lng: ORIGEM.lng }
     const map = new g.Map(mapDivRef.current, {
-      center:              { lat: ORIGEM.lat, lng: ORIGEM.lng },
-      zoom:                13,
+      center:              mapCenter,
+      zoom:                14,
       mapTypeControl:      false,
       streetViewControl:   false,
       fullscreenControl:   false,
@@ -187,14 +189,24 @@ export default function RotasClient({ mapsKey }: { mapsKey: string }) {
   const { toast } = useToast()
 
   // Configuração
-  const [startTime,  setStartTime]  = useState('09:00')
-  const [minVenues,  setMinVenues]  = useState(3)
-  const [maxVenues,  setMaxVenues]  = useState(10)
-  const [mapArea,    setMapArea]    = useState<MapArea | null>(null)
-  const [types,      setTypes]      = useState<string[]>(
+  const [startTime,    setStartTime]    = useState('09:00')
+  const [minVenues,    setMinVenues]    = useState(3)
+  const [maxVenues,    setMaxVenues]    = useState(10)
+  const [mapArea,      setMapArea]      = useState<MapArea | null>(null)
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [types,        setTypes]        = useState<string[]>(
     SEARCH_TYPES.filter(t => t.defaultChecked).map(t => t.query)
   )
-  const [panelOpen,  setPanelOpen]  = useState(true)
+  const [panelOpen,    setPanelOpen]    = useState(true)
+
+  // Obter localização do usuário ao montar
+  useEffect(() => {
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(
+      pos => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => { /* sem permissão — usa ORIGEM como fallback */ }
+    )
+  }, [])
 
   // Progresso
   const [running,   setRunning]   = useState(false)
@@ -277,6 +289,7 @@ export default function RotasClient({ mapsKey }: { mapsKey: string }) {
           forceInclude: Array.from(newForce),
           startTime,
           maxVenues,
+          origin:       userLocation ?? undefined,
         }),
       })
       const data = await res.json()
@@ -372,7 +385,7 @@ export default function RotasClient({ mapsKey }: { mapsKey: string }) {
       const res  = await fetch('/api/admin/rotas/plan', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ places: unvisited, startTime, maxVenues }),
+        body:    JSON.stringify({ places: unvisited, startTime, maxVenues, origin: userLocation ?? undefined }),
       })
       const data = await res.json()
       setScheduled(data.scheduled ?? [])
@@ -409,7 +422,7 @@ export default function RotasClient({ mapsKey }: { mapsKey: string }) {
         <div>
           <h1 className="text-2xl font-bold">Planejador de Rotas</h1>
           <p className="text-muted-foreground text-sm">
-            Partida: <span className="font-medium">{ORIGEM.label}</span>
+            Partida: <span className="font-medium">{userLocation ? 'Localização atual' : ORIGEM.label}</span>
             {hasResults && ` · ${scheduled.length} agendadas · ${manual.length} manual`}
           </p>
         </div>
@@ -477,7 +490,7 @@ export default function RotasClient({ mapsKey }: { mapsKey: string }) {
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   Área de busca — clique no mapa para definir o centro
                 </p>
-                <MapPicker mapsKey={mapsKey} onChange={setMapArea} />
+                <MapPicker mapsKey={mapsKey} userLocation={userLocation} onChange={setMapArea} />
               </div>
 
               {/* Tipos */}
