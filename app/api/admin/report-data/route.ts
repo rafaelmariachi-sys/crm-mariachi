@@ -27,6 +27,8 @@ export async function GET(request: NextRequest) {
     { data: visits, error: visitsErr },
     { data: allPositivations, error: posErr },
     { data: followups, error: fuErr },
+    { data: allPositivationsAnyBrand, error: posAnyErr },
+    { data: allFollowupsAnyBrand, error: fuAnyErr },
   ] = await Promise.all([
     // Todas as visitas do período
     admin
@@ -51,15 +53,31 @@ export async function GET(request: NextRequest) {
       .gte('due_date', start)
       .lte('due_date', end)
       .order('due_date', { ascending: true }),
+
+    // Todas as positivações, de qualquer marca — só pra saber quais visitas já têm vínculo
+    admin.from('positivations').select('visit_id').not('visit_id', 'is', null),
+
+    // Todos os follow-ups direcionados (com marca), de qualquer marca — mesmo propósito
+    admin.from('followups').select('visit_id').not('brand_id', 'is', null).not('visit_id', 'is', null),
   ])
 
   if (visitsErr) return NextResponse.json({ error: visitsErr.message }, { status: 500 })
   if (posErr) return NextResponse.json({ error: posErr.message }, { status: 500 })
   if (fuErr) return NextResponse.json({ error: fuErr.message }, { status: 500 })
+  if (posAnyErr) return NextResponse.json({ error: posAnyErr.message }, { status: 500 })
+  if (fuAnyErr) return NextResponse.json({ error: fuAnyErr.message }, { status: 500 })
+
+  // Visitas sem NENHUMA marca vinculada (nem positivação, nem follow-up direcionado, em qualquer marca)
+  const linkedVisitIds = new Set<string>([
+    ...(allPositivationsAnyBrand ?? []).map((p: any) => p.visit_id),
+    ...(allFollowupsAnyBrand ?? []).map((f: any) => f.visit_id),
+  ])
+  const prospectionVisits = (visits ?? []).filter((v: any) => !linkedVisitIds.has(v.id))
 
   return NextResponse.json({
     visits: visits ?? [],
     positivations: allPositivations ?? [],
     followups: followups ?? [],
+    prospectionVisits,
   })
 }

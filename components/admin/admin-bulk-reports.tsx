@@ -38,7 +38,7 @@ export function AdminBulkReports({ brands }: Props) {
       throw new Error(err.error || `HTTP ${res.status}`)
     }
     const data = await res.json()
-    await generateBrandReportPDF(brand.name, selectedMonth, data.visits, data.positivations, data.followups)
+    await generateBrandReportPDF(brand.name, selectedMonth, data.visits, data.positivations, data.followups, data.prospectionVisits)
     return true
   }
 

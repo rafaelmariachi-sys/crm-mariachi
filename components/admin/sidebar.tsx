@@ -61,7 +61,7 @@ export function AdminSidebar() {
           <p className="text-xs text-muted-foreground">Admin</p>
         </div>
       </div>
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
           const Icon = item.icon
           const active = pathname === item.href || pathname.startsWith(item.href + '/')

@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Wine, Loader2 } from 'lucide-react'
+import Image from 'next/image'
+import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -33,17 +34,15 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex items-center justify-center bg-[#232c4f] p-4">
       <div className="w-full max-w-sm space-y-6">
-        <div className="flex flex-col items-center gap-2">
-          <div className="p-3 rounded-full bg-primary/10 border border-primary/20">
-            <Wine className="h-8 w-8 text-primary" />
-          </div>
-          <h1 className="text-2xl font-bold">Mariachi Spirits</h1>
-          <p className="text-sm text-muted-foreground">CRM de Embaixador de Marcas</p>
+        <div className="flex flex-col items-center gap-3">
+          <Image src="/logo-ms-gold.png" alt="Mariachi Spirits" width={64} height={68} priority />
+          <h1 className="text-2xl font-bold tracking-wide text-[#C5A059]">Mariachi Spirits</h1>
+          <p className="text-sm text-[#C5A059]/70">CRM de Embaixador de Marcas</p>
         </div>
 
-        <Card>
+        <Card className="border-[#C5A059]/20">
           <CardHeader>
             <CardTitle>Entrar</CardTitle>
             <CardDescription>Acesse sua conta para continuar</CardDescription>

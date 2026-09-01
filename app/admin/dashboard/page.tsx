@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { StatsCard } from '@/components/stats-card'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -21,6 +22,7 @@ export default async function AdminDashboard() {
     { data: positivatedVenues },
     { data: overdueFollowups },
     { data: recentVisits },
+    { data: visitsByCreator },
   ] = await Promise.all([
     supabase
       .from('visits')
@@ -52,7 +54,33 @@ export default async function AdminDashboard() {
       .select('id, visited_at, notes, venues(name, city, type)')
       .order('visited_at', { ascending: false })
       .limit(5),
+
+    // Visitas do mês, por quem criou — sem limite de linhas
+    supabase
+      .from('visits')
+      .select('created_by')
+      .gte('visited_at', start)
+      .lte('visited_at', end),
   ])
+
+  // Conta visitas por usuário e resolve o e-mail de cada um (client admin bypassa RLS)
+  const countByUser = new Map<string, number>()
+  ;(visitsByCreator || []).forEach((v: { created_by: string | null }) => {
+    if (!v.created_by) return
+    countByUser.set(v.created_by, (countByUser.get(v.created_by) || 0) + 1)
+  })
+
+  let visitsPerUser: { id: string; label: string; count: number }[] = []
+  if (countByUser.size > 0) {
+    const adminClient = createAdminClient()
+    const { data: usersData } = await adminClient.auth.admin.listUsers({ perPage: 1000 })
+    visitsPerUser = Array.from(countByUser.entries())
+      .map(([id, count]) => {
+        const authUser = usersData?.users.find((u) => u.id === id)
+        return { id, label: authUser?.email ?? `Usuário ${id.slice(0, 8)}`, count }
+      })
+      .sort((a, b) => b.count - a.count)
+  }
 
   // Count positivations by status (valores reais do banco)
   const statusCounts: Record<string, number> = {
@@ -124,14 +152,14 @@ export default async function AdminDashboard() {
                 {overdueFollowups.map((f: any) => {
                   const { label, urgent } = getDueDateLabel(f.due_date)
                   return (
-                    <div key={f.id} className="flex items-start justify-between gap-3 p-3 rounded-lg bg-muted/40">
+                    <div key={f.id} className="flex items-start justify-between gap-3 p-3 rounded-lg bg-primary text-primary-foreground">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{f.content}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
+                        <p className="text-xs text-primary-foreground/70 mt-0.5">
                           {(f.brands as any)?.name} · {(f.visits as any)?.venues?.name}
                         </p>
                       </div>
-                      <span className={cn('text-xs font-medium whitespace-nowrap', urgent ? 'text-red-400' : 'text-muted-foreground')}>
+                      <span className={cn('text-xs font-medium whitespace-nowrap', urgent ? 'text-red-300' : 'text-primary-foreground/70')}>
                         {label}
                       </span>
                     </div>
@@ -179,6 +207,27 @@ export default async function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Visits by user */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Visitas por usuário (mês atual)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {visitsPerUser.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhuma visita registrada neste mês.</p>
+          ) : (
+            <div className="space-y-2">
+              {visitsPerUser.map((u) => (
+                <div key={u.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/40">
+                  <span className="text-sm font-medium truncate">{u.label}</span>
+                  <Badge variant="secondary">{u.count} {u.count === 1 ? 'visita' : 'visitas'}</Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Positivation status overview */}
       <Card>

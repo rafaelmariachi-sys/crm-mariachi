@@ -17,7 +17,8 @@ export async function generateBrandReportPDF(
   selectedMonth: string,
   allVisits: any[],
   allPositivations: any[],
-  followups: any[]
+  followups: any[],
+  prospectionVisits: any[] = []
 ): Promise<void> {
   const { jsPDF } = await import('jspdf')
   const { default: autoTable } = await import('jspdf-autotable')
@@ -81,6 +82,7 @@ export async function generateBrandReportPDF(
 
   const cards = [
     { label: 'Visitas no mês', value: allVisits.length },
+    { label: 'Visitas de prospecção', value: prospectionVisits.length },
     { label: 'Novas positivações no mês', value: monthPositivations.length },
     { label: 'Total positivados (portfólio)', value: statusCounts.positivado },
     { label: 'Em Negociação', value: statusCounts.em_negociacao },
@@ -143,6 +145,25 @@ export async function generateBrandReportPDF(
     body: allVisits.length === 0
       ? noData('Nenhuma visita registrada no período')
       : allVisits.map((v: any) => [
+          format(new Date(v.visited_at), 'dd/MM/yyyy', { locale: ptBR }),
+          v.venues?.name || '—', v.venues?.type || '—',
+          [v.venues?.neighborhood, v.venues?.city].filter(Boolean).join(' · ') || '—',
+          v.notes || '',
+        ]),
+    columnStyles: { 0: { cellWidth: 22 }, 2: { cellWidth: 20 }, 4: { cellWidth: 52 } },
+  })
+  y = (doc as any).lastAutoTable.finalY + 10
+
+  // 1.5. Visitas de prospecção — sem nenhuma marca vinculada (nem positivação, nem follow-up direcionado)
+  section(`VISITAS DE PROSPECÇÃO — ${monthLabelUp.toUpperCase()}`)
+  autoTable(doc, {
+    ...tbl,
+    headStyles: { fillColor: [60, 60, 60] as [number, number, number], textColor: 255, fontStyle: 'bold' as const, fontSize: 7.5 },
+    startY: y,
+    head: [['Data', 'Casa', 'Tipo', 'Bairro · Cidade', 'Observação']],
+    body: prospectionVisits.length === 0
+      ? noData('Nenhuma visita de prospecção (sem marca vinculada) no período')
+      : prospectionVisits.map((v: any) => [
           format(new Date(v.visited_at), 'dd/MM/yyyy', { locale: ptBR }),
           v.venues?.name || '—', v.venues?.type || '—',
           [v.venues?.neighborhood, v.venues?.city].filter(Boolean).join(' · ') || '—',
