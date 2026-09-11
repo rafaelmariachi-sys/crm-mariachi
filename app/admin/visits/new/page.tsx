@@ -92,10 +92,62 @@ export default function NewVisitPage() {
       recognitionRef.current.stop()
       setIsRecording(false)
     } else {
+      if (recordingFollowupIndex !== null) followupRecognitionRef.current?.stop()
       notesBeforeRecordingRef.current = notes
       recognitionRef.current.start()
       setIsRecording(true)
     }
+  }
+
+  // Gravação por voz para o conteúdo de cada follow-up por marca
+  const [recordingFollowupIndex, setRecordingFollowupIndex] = useState<number | null>(null)
+  const followupRecognitionRef = useRef<any>(null)
+  const followupBaseRef = useRef('')
+
+  function toggleFollowupRecording(i: number) {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SpeechRecognition) return
+
+    if (recordingFollowupIndex === i) {
+      followupRecognitionRef.current?.stop()
+      setRecordingFollowupIndex(null)
+      return
+    }
+
+    // só uma gravação por vez: encerra a geral ou outro follow-up ativo
+    if (isRecording) {
+      recognitionRef.current?.stop()
+      setIsRecording(false)
+    }
+    if (recordingFollowupIndex !== null) {
+      followupRecognitionRef.current?.stop()
+    }
+
+    const recognition = new SpeechRecognition()
+    recognition.lang = 'pt-BR'
+    recognition.continuous = true
+    recognition.interimResults = true
+    followupBaseRef.current = followups[i]?.content || ''
+
+    recognition.onresult = (event: any) => {
+      let finalTranscript = ''
+      let interimTranscript = ''
+      for (let r = event.resultIndex; r < event.results.length; r++) {
+        const transcript = event.results[r][0].transcript
+        if (event.results[r].isFinal) finalTranscript += transcript + ' '
+        else interimTranscript += transcript
+      }
+      const base = followupBaseRef.current
+      const separator = base && !base.endsWith(' ') && !base.endsWith('\n') ? ' ' : ''
+      updateFollowup(i, 'content', base + separator + finalTranscript + interimTranscript)
+      if (finalTranscript) followupBaseRef.current = base + separator + finalTranscript
+    }
+    recognition.onerror = () => setRecordingFollowupIndex(null)
+    recognition.onend = () => setRecordingFollowupIndex(null)
+
+    followupRecognitionRef.current = recognition
+    recognition.start()
+    setRecordingFollowupIndex(i)
   }
 
   // Inline new venue form
@@ -521,8 +573,37 @@ export default function NewVisitPage() {
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Conteúdo / compromisso *</Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Conteúdo / compromisso *</Label>
+                    {speechSupported && (
+                      <Button
+                        type="button"
+                        variant={recordingFollowupIndex === i ? 'destructive' : 'outline'}
+                        size="sm"
+                        onClick={() => toggleFollowupRecording(i)}
+                        className="h-6 gap-1.5 text-xs px-2"
+                      >
+                        {recordingFollowupIndex === i ? (
+                          <>
+                            <Square className="h-3 w-3" />
+                            Parar
+                          </>
+                        ) : (
+                          <>
+                            <Mic className="h-3 w-3" />
+                            Gravar por voz
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
                   <Textarea placeholder="Descreva o combinado..." value={f.content} onChange={(e) => updateFollowup(i, 'content', e.target.value)} rows={2} />
+                  {recordingFollowupIndex === i && (
+                    <p className="text-xs text-primary flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+                      Ouvindo... revise o texto antes de salvar.
+                    </p>
+                  )}
                 </div>
               </div>
             ))}
