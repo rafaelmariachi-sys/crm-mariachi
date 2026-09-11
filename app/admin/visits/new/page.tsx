@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/components/ui/use-toast'
-import { Plus, X, Loader2, ArrowLeft, MapPin } from 'lucide-react'
+import { Plus, X, Loader2, ArrowLeft, MapPin, Mic, Square } from 'lucide-react'
 import { POSITIVATION_STATUS_LABELS, FOLLOWUP_STATUS_LABELS, Brand, Venue, PositivationStatus, FollowupStatus, VENUE_TYPES } from '@/lib/types'
 import Link from 'next/link'
 import { format } from 'date-fns'
@@ -37,6 +37,66 @@ export default function NewVisitPage() {
   const [venueId, setVenueId] = useState('')
   const [visitedAt, setVisitedAt] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [notes, setNotes] = useState('')
+
+  // Gravação de voz -> transcrição (Nível 1: Web Speech API do navegador, sem custo)
+  const [isRecording, setIsRecording] = useState(false)
+  const [speechSupported, setSpeechSupported] = useState(true)
+  const recognitionRef = useRef<any>(null)
+  const notesBeforeRecordingRef = useRef('')
+
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SpeechRecognition) {
+      setSpeechSupported(false)
+      return
+    }
+    const recognition = new SpeechRecognition()
+    recognition.lang = 'pt-BR'
+    recognition.continuous = true
+    recognition.interimResults = true
+
+    recognition.onresult = (event: any) => {
+      let finalTranscript = ''
+      let interimTranscript = ''
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript
+        if (event.results[i].isFinal) finalTranscript += transcript + ' '
+        else interimTranscript += transcript
+      }
+      const base = notesBeforeRecordingRef.current
+      const separator = base && !base.endsWith(' ') && !base.endsWith('\n') ? ' ' : ''
+      setNotes(base + separator + finalTranscript + interimTranscript)
+      if (finalTranscript) {
+        notesBeforeRecordingRef.current = base + separator + finalTranscript
+      }
+    }
+
+    recognition.onerror = () => {
+      setIsRecording(false)
+    }
+
+    recognition.onend = () => {
+      setIsRecording(false)
+    }
+
+    recognitionRef.current = recognition
+
+    return () => {
+      recognition.stop()
+    }
+  }, [])
+
+  function toggleRecording() {
+    if (!recognitionRef.current) return
+    if (isRecording) {
+      recognitionRef.current.stop()
+      setIsRecording(false)
+    } else {
+      notesBeforeRecordingRef.current = notes
+      recognitionRef.current.start()
+      setIsRecording(true)
+    }
+  }
 
   // Inline new venue form
   const [showNewVenueForm, setShowNewVenueForm] = useState(false)
@@ -322,8 +382,42 @@ export default function NewVisitPage() {
               <Input type="date" value={visitedAt} onChange={(e) => setVisitedAt(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Follow-up Geral</Label>
+              <div className="flex items-center justify-between">
+                <Label>Follow-up Geral</Label>
+                {speechSupported && (
+                  <Button
+                    type="button"
+                    variant={isRecording ? 'destructive' : 'outline'}
+                    size="sm"
+                    onClick={toggleRecording}
+                    className="h-7 gap-1.5 text-xs"
+                  >
+                    {isRecording ? (
+                      <>
+                        <Square className="h-3 w-3" />
+                        Parar gravação
+                      </>
+                    ) : (
+                      <>
+                        <Mic className="h-3 w-3" />
+                        Gravar por voz
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
               <Textarea placeholder="Observações gerais, visita de relacionamento, prospecção..." value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
+              {isRecording && (
+                <p className="text-xs text-primary flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+                  Ouvindo... fale suas observações. O texto aparece no campo acima, revise antes de salvar.
+                </p>
+              )}
+              {!speechSupported && (
+                <p className="text-xs text-muted-foreground">
+                  Gravação por voz não é suportada neste navegador (use Chrome ou Edge).
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
