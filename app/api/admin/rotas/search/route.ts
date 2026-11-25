@@ -7,6 +7,13 @@ export const maxDuration = 60
 const MAPS  = 'https://maps.googleapis.com/maps/api/place'
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
+// Mensagem legível para recusas do Google (antes eram engolidas e viravam "nenhum resultado")
+function googleError(step: string, data: any): string {
+  const status = data?.status ?? 'SEM_STATUS'
+  const msg    = data?.error_message ? ` — ${data.error_message}` : ''
+  return `Google recusou a ${step} (${status})${msg}`
+}
+
 const MERCADO_SPECIALTY = [
   'gourmet','vinho','bebida','empório','emporio','drink','cerveja',
   'adega','bar','bistrô','bistro','gastro','artesanal','deli','delicatessen',
@@ -110,8 +117,12 @@ export async function POST(req: NextRequest) {
     const data = await res.json()
 
     if (data.status === 'ZERO_RESULTS') break
-    if (data.status === 'REQUEST_DENIED') return NextResponse.json({ error: data.error_message }, { status: 403 })
-    if (!['OK', 'NEXT_PAGE_AVAILABLE'].includes(data.status)) break
+    // INVALID_REQUEST numa página seguinte = token ainda não ativo; para sem perder o que já veio
+    if (data.status === 'INVALID_REQUEST' && page > 0) break
+    if (!['OK', 'NEXT_PAGE_AVAILABLE'].includes(data.status)) {
+      console.error('[ROTAS] textsearch', data.status, data.error_message)
+      return NextResponse.json({ error: googleError('busca', data) }, { status: 502 })
+    }
 
     places.push(...(data.results || []))
     pageToken = data.next_page_token ?? null
@@ -123,6 +134,8 @@ export async function POST(req: NextRequest) {
 
   // ── Place Details ────────────────────────────────────────────────────────
   const results: any[] = []
+  let detailsFailed = 0
+  let lastDetailsError: any = null
 
   for (const place of places) {
     if (!place.place_id) continue
@@ -136,7 +149,13 @@ export async function POST(req: NextRequest) {
     })
     const dr = await fetch(`${MAPS}/details/json?${dp}`, { cache: 'no-store' })
     const dd = await dr.json()
-    if (dd.status !== 'OK') continue
+    if (dd.status !== 'OK') {
+      detailsFailed++
+      lastDetailsError = dd
+      // Recusa de conta/chave vale para todos os lugares: não adianta continuar
+      if (['REQUEST_DENIED', 'OVER_QUERY_LIMIT', 'OVER_DAILY_LIMIT'].includes(dd.status)) break
+      continue
+    }
     await sleep(120)
 
     const d        = dd.result
@@ -160,6 +179,12 @@ export async function POST(req: NextRequest) {
       lat:           d.geometry?.location?.lat ?? place.geometry?.location?.lat ?? null,
       lng:           d.geometry?.location?.lng ?? place.geometry?.location?.lng ?? null,
     })
+  }
+
+  // Se nada passou porque o Google recusou os detalhes, avisa em vez de devolver lista vazia
+  if (results.length === 0 && detailsFailed > 0) {
+    console.error('[ROTAS] details', lastDetailsError?.status, lastDetailsError?.error_message)
+    return NextResponse.json({ error: googleError('consulta de detalhes', lastDetailsError) }, { status: 502 })
   }
 
   return NextResponse.json({ places: results })
