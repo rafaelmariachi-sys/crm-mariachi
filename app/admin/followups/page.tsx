@@ -84,7 +84,7 @@ export default function FollowupsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas as marcas</SelectItem>
-            {brands.map((b) => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}
+            {brands.map((b) => <SelectItem key={b.id} value={b.name}>{b.active === false ? `${b.name} (arquivada)` : b.name}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filterStatus} onValueChange={setFilterStatus}>

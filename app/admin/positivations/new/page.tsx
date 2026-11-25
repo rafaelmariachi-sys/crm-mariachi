@@ -56,7 +56,7 @@ export default function NewPositivationPage() {
 
   useEffect(() => {
     Promise.all([
-      supabase.from('brands').select('*').order('name'),
+      supabase.from('brands').select('*').eq('active', true).order('name'),
       supabase.from('venues').select('*').order('name'),
       supabase.from('brand_skus').select('*').eq('active', true).order('display_order'),
     ]).then(([{ data: b }, { data: v }, { data: s }]) => {
