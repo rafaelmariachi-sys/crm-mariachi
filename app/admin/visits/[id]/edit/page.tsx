@@ -35,6 +35,15 @@ export default function EditVisitPage() {
   const [positivations, setPositivations] = useState<PositivationForm[]>([])
   const [followups, setFollowups] = useState<FollowupForm[]>([])
 
+  // Novos vínculos só com marcas ativas; a marca arquivada já gravada no
+  // registro continua aparecendo para que o nome seja exibido corretamente.
+  function brandOptions(currentBrandId?: string | null) {
+    return brands.filter((b) => b.active !== false || b.id === currentBrandId)
+  }
+  function brandLabel(b: Brand) {
+    return b.active === false ? `${b.name} (arquivada)` : b.name
+  }
+
   useEffect(() => {
     async function load() {
       const [{ data: b }, { data: visit }, { data: { user } }] = await Promise.all([
@@ -230,7 +239,7 @@ export default function EditVisitPage() {
                     <Label className="text-xs">Marca *</Label>
                     <Select value={p.brand_id} onValueChange={(v) => updatePositivation(i, 'brand_id', v)}>
                       <SelectTrigger className="h-9"><SelectValue placeholder="Selecionar" /></SelectTrigger>
-                      <SelectContent>{brands.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
+                      <SelectContent>{brandOptions(p.brand_id).map((b) => <SelectItem key={b.id} value={b.id}>{brandLabel(b)}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1.5">
@@ -284,7 +293,7 @@ export default function EditVisitPage() {
                       <SelectTrigger className="h-9"><SelectValue placeholder="Selecionar" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">🌐 Todas as marcas</SelectItem>
-                        {brands.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                        {brandOptions(f.brand_id).map((b) => <SelectItem key={b.id} value={b.id}>{brandLabel(b)}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>

@@ -2,6 +2,7 @@ export type Brand = {
   id: string
   name: string
   logo_url: string | null
+  active: boolean
   created_at: string
 }
 

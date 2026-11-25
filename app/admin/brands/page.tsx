@@ -9,8 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Card, CardContent } from '@/components/ui/card'
 import { useToast } from '@/components/ui/use-toast'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus, Package, Loader2, UserPlus, Trash2, GripVertical } from 'lucide-react'
+import { Plus, Package, Loader2, UserPlus, Trash2, GripVertical, Archive, ArchiveRestore } from 'lucide-react'
 import { Brand } from '@/lib/types'
+import { cn } from '@/lib/utils'
 
 type Sku = { id: string; name: string; active: boolean; display_order: number }
 
@@ -22,6 +23,8 @@ export default function BrandsPage() {
   const [skuDialogOpen, setSkuDialogOpen] = useState(false)
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null)
   const [saving, setSaving] = useState(false)
+  const [view, setView] = useState<'active' | 'archived'>('active')
+  const [togglingId, setTogglingId] = useState<string | null>(null)
   const { toast } = useToast()
   const supabase = createClient()
 
@@ -42,6 +45,24 @@ export default function BrandsPage() {
   }
 
   useEffect(() => { loadBrands() }, [])
+
+  // active pode vir undefined se a coluna ainda não existir no banco: trata como ativa
+  const activeBrands = brands.filter((b) => b.active !== false)
+  const archivedBrands = brands.filter((b) => b.active === false)
+  const visibleBrands = view === 'active' ? activeBrands : archivedBrands
+
+  async function setBrandActive(brand: Brand, active: boolean) {
+    if (!active && !confirm(`Arquivar "${brand.name}"?\n\nA marca some dos seletores de novos registros. Nenhum dado é apagado e ela continua nos relatórios e registros antigos.`)) return
+    setTogglingId(brand.id)
+    const { error } = await supabase.from('brands').update({ active }).eq('id', brand.id)
+    if (error) {
+      toast({ title: active ? 'Erro ao reativar marca' : 'Erro ao arquivar marca', description: error.message, variant: 'destructive' })
+    } else {
+      setBrands((prev) => prev.map((b) => (b.id === brand.id ? { ...b, active } : b)))
+      toast({ title: active ? `"${brand.name}" reativada` : `"${brand.name}" arquivada` })
+    }
+    setTogglingId(null)
+  }
 
   async function loadSkus(brandId: string) {
     setSkuLoading(true)
@@ -110,6 +131,7 @@ export default function BrandsPage() {
       toast({ title: 'Marca criada!' })
       setBrandDialogOpen(false)
       setBrandForm({ name: '', logo_url: '' })
+      setView('active')
       loadBrands()
     }
     setSaving(false)
@@ -146,26 +168,64 @@ export default function BrandsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Marcas</h1>
-          <p className="text-muted-foreground text-sm">{brands.length} marcas cadastradas</p>
+          <p className="text-muted-foreground text-sm">
+            {view === 'active'
+              ? `${activeBrands.length} ${activeBrands.length === 1 ? 'marca ativa' : 'marcas ativas'}`
+              : `${archivedBrands.length} ${archivedBrands.length === 1 ? 'marca arquivada' : 'marcas arquivadas'}`}
+          </p>
         </div>
         <Button onClick={() => setBrandDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />Nova marca
         </Button>
       </div>
 
+      <div className="flex gap-2">
+        {([
+          { value: 'active', label: 'Ativas', count: activeBrands.length, icon: Package },
+          { value: 'archived', label: 'Arquivadas', count: archivedBrands.length, icon: Archive },
+        ] as const).map((opt) => {
+          const Icon = opt.icon
+          return (
+            <button
+              key={opt.value}
+              onClick={() => setView(opt.value)}
+              className={cn(
+                'flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium border transition-colors',
+                view === opt.value
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-transparent text-muted-foreground border-border hover:border-primary/50 hover:text-foreground'
+              )}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {opt.label}
+              {!loading && <span className="opacity-70">({opt.count})</span>}
+            </button>
+          )
+        })}
+      </div>
+
       {loading ? (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-40 rounded-lg" />)}
         </div>
-      ) : brands.length === 0 ? (
+      ) : visibleBrands.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
-          <Package className="h-10 w-10 mx-auto mb-3 opacity-30" />
-          <p>Nenhuma marca cadastrada</p>
+          {view === 'active' ? (
+            <>
+              <Package className="h-10 w-10 mx-auto mb-3 opacity-30" />
+              <p>Nenhuma marca ativa</p>
+            </>
+          ) : (
+            <>
+              <Archive className="h-10 w-10 mx-auto mb-3 opacity-30" />
+              <p>Nenhuma marca arquivada</p>
+            </>
+          )}
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {brands.map((brand) => (
-            <Card key={brand.id}>
+          {visibleBrands.map((brand) => (
+            <Card key={brand.id} className={view === 'archived' ? 'opacity-75' : undefined}>
               <CardContent className="p-5 space-y-4">
                 <div className="flex items-center gap-3">
                   {brand.logo_url ? (
@@ -177,20 +237,47 @@ export default function BrandsPage() {
                   )}
                   <div>
                     <p className="font-semibold">{brand.name}</p>
-                    <p className="text-xs text-muted-foreground">Marca cliente</p>
+                    <p className="text-xs text-muted-foreground">{view === 'archived' ? 'Marca arquivada' : 'Marca cliente'}</p>
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <Button variant="outline" size="sm" className="w-full" onClick={() => openSkuDialog(brand)}>
-                    <Package className="h-3 w-3 mr-2" />
-                    Gerenciar SKUs
+                {view === 'active' ? (
+                  <div className="flex flex-col gap-2">
+                    <Button variant="outline" size="sm" className="w-full" onClick={() => openSkuDialog(brand)}>
+                      <Package className="h-3 w-3 mr-2" />
+                      Gerenciar SKUs
+                    </Button>
+                    <Button variant="outline" size="sm" className="w-full" onClick={() => { setSelectedBrand(brand); setUserDialogOpen(true) }}>
+                      <UserPlus className="h-3 w-3 mr-2" />
+                      Criar acesso
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-muted-foreground hover:text-foreground"
+                      disabled={togglingId === brand.id}
+                      onClick={() => setBrandActive(brand, false)}
+                    >
+                      {togglingId === brand.id
+                        ? <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                        : <Archive className="h-3 w-3 mr-2" />}
+                      Arquivar marca
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    disabled={togglingId === brand.id}
+                    onClick={() => setBrandActive(brand, true)}
+                  >
+                    {togglingId === brand.id
+                      ? <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                      : <ArchiveRestore className="h-3 w-3 mr-2" />}
+                    Reativar
                   </Button>
-                  <Button variant="outline" size="sm" className="w-full" onClick={() => { setSelectedBrand(brand); setUserDialogOpen(true) }}>
-                    <UserPlus className="h-3 w-3 mr-2" />
-                    Criar acesso
-                  </Button>
-                </div>
+                )}
               </CardContent>
             </Card>
           ))}
